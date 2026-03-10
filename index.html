@@ -202,7 +202,7 @@ tr.selected-row{background:rgba(239,68,68,.07);}
       <button class="btn btn-outline" onclick="exportExcel()" style="font-size:12px;" title="Export Excel">📊 Excel</button>
       <button class="btn btn-outline" onclick="exportBackup()" title="สำรองข้อมูล" style="font-size:12px;">💾 Backup</button>
       <button class="btn btn-outline" onclick="importBackup()" title="นำเข้า Backup" style="font-size:12px;">📂 Restore</button>
-      <button class="btn btn-outline" onclick="openSetupModal()" title="ตั้งค่า Google Sheets URL" style="font-size:12px;">🔗 เชื่อมต่อ</button>
+      <button class="btn btn-outline" onclick="openSyncModal()" title="ตั้งค่า Google Sheets URL" style="font-size:12px;">🔗 เชื่อมต่อ</button>
       <button class="btn btn-outline" onclick="openModal('settings')" style="font-size:14px;" title="ตั้งค่า Prefix Serial">⚙</button>
       <button class="btn btn-primary" onclick="openModal('buy')">+ นำเข้า Tool</button>
     </div>
@@ -3678,7 +3678,7 @@ function exportExcel(){
 //  GOOGLE SHEETS SYNC + LOCAL STORAGE
 // ═══════════════════════════════════════════
 const LS_KEY = 'ctstock_v3';
-let GAS_URL = 'https://script.google.com/macros/s/AKfycby66KQpIHrLJ43sFsXVQGhUcbV3QBWikyrdtWH5kBRTlIf9WodThZ3zf0eCbmKW5a6U/exec';
+let GAS_URL = 'https://script.google.com/macros/s/AKfycbz6LRS-4iZ82y630n0JJCpjMaQmjisOXSJMqpJMcPlXu6Qma7TpxzYxCRAITftXK4SS/exec';
 try { GAS_URL = localStorage.getItem('ctstock_gas_url') || GAS_URL; } catch(e){}
 let saveTimer = null;
 
