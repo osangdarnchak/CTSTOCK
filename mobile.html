@@ -480,12 +480,25 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
     </div>
     <div class="sheet-body">
       <div id="iss-basket" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:5px;"></div>
+
+      <!-- Serial ที่เลือก (dropdown) -->
+      <div class="fg" id="iss-serial-block" style="display:none;">
+        <label>Serial ที่จะเบิก</label>
+        <select class="fi" id="mi-serial-select"></select>
+      </div>
+
       <div class="row2">
-        <div class="fg"><label>ผู้เบิก *</label><input class="fi" id="mi-person" placeholder="ชื่อ"></div>
+        <div class="fg">
+          <label>ผู้เบิก *</label>
+          <input list="mi-person-list" class="fi" id="mi-person" placeholder="พิมพ์หรือเลือก">
+          <datalist id="mi-person-list"></datalist>
+        </div>
         <div class="fg"><label>วันที่</label><input type="date" class="fi" id="mi-date"></div>
       </div>
-      <div class="fg"><label>แผนก</label>
-        <select class="fi" id="mi-dept"></select>
+      <div class="fg">
+        <label>แผนก</label>
+        <input list="mi-dept-list" class="fi" id="mi-dept" placeholder="พิมพ์หรือเลือก">
+        <datalist id="mi-dept-list"></datalist>
       </div>
       <div class="fg"><label>ประเภทการเบิก</label>
         <select class="fi" id="mi-action" onchange="mToggleReplace()">
@@ -520,7 +533,11 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
     <div class="sheet-body">
       <div id="ret-tool-info" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;"></div>
       <div class="row2">
-        <div class="fg"><label>ผู้คืน *</label><input class="fi" id="mr-person" placeholder="ชื่อ"></div>
+        <div class="fg">
+          <label>ผู้คืน *</label>
+          <input list="mr-person-list" class="fi" id="mr-person" placeholder="พิมพ์หรือเลือก">
+          <datalist id="mr-person-list"></datalist>
+        </div>
         <div class="fg"><label>วันที่</label><input type="date" class="fi" id="mr-date"></div>
       </div>
       <div class="fg"><label>สภาพ</label>
@@ -575,11 +592,17 @@ select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns=
     <div class="sheet-body">
       <div id="ri-tool-info" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;"></div>
       <div class="row2">
-        <div class="fg"><label>ผู้เบิก *</label><input class="fi" id="mri-person" placeholder="ชื่อ"></div>
+        <div class="fg">
+          <label>ผู้เบิก *</label>
+          <input list="mri-person-list" class="fi" id="mri-person" placeholder="พิมพ์หรือเลือก">
+          <datalist id="mri-person-list"></datalist>
+        </div>
         <div class="fg"><label>วันที่</label><input type="date" class="fi" id="mri-date"></div>
       </div>
-      <div class="fg"><label>แผนก</label>
-        <select class="fi" id="mri-dept"></select>
+      <div class="fg">
+        <label>แผนก</label>
+        <input list="mri-dept-list" class="fi" id="mri-dept" placeholder="พิมพ์หรือเลือก">
+        <datalist id="mri-dept-list"></datalist>
       </div>
     </div>
     <div class="sheet-foot">
@@ -682,33 +705,43 @@ function goPage(name, btn){
   if(name==='return') renderReturnPage();
 }
 
-// ── Populate dept dropdowns from real data ──
-function populateDepts(...selIds){
+// ── Populate comboboxes from real data ──
+function populateComboboxes(){
+  // Persons from all transactions
+  const persons = [...new Set(TXNS.filter(t=>t.person).map(t=>t.person))].sort();
+  const personOpts = persons.map(p=>`<option value="${p}">`).join('');
+  ['mi-person-list','mr-person-list','mri-person-list'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML=personOpts;
+  });
+
+  // Depts from all transactions
   const depts = [...new Set(TXNS.filter(t=>t.dept).map(t=>t.dept))].sort();
-  // fallback if no txns yet
-  const list = depts.length > 0 ? depts : ['Repeat','MC&CL'];
-  selIds.forEach(id => {
-    const el = document.getElementById(id);
-    if(!el) return;
-    const cur = el.value;
-    el.innerHTML = list.map(d=>`<option value="${d}" ${d===cur?'selected':''}>${d}</option>`).join('');
-    // restore selection or pick first
-    if(!el.value && list.length) el.value = list[0];
+  const deptOpts = depts.map(d=>`<option value="${d}">`).join('');
+  ['mi-dept-list','mri-dept-list'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML=deptOpts;
   });
 }
+
+// legacy alias
+function populateDepts(...ids){ populateComboboxes(); }
 
 
 function openSheet(name){
   if(name==='buy'){ document.getElementById('mb-date').value=today(); mSetBuyMode('auto'); mUpdateBuySerial(); mBuySerials=[]; mBuyImageData={receipt:null,tool:null}; document.getElementById('mb-serial-tags').innerHTML=''; document.getElementById('mb-receipt-prev').style.display='none'; document.getElementById('mb-toolimg-prev').style.display='none'; }
   if(name==='issue'){
     document.getElementById('mi-date').value=today();
-    populateDepts('mi-dept');
-    renderIssBasket(); mPopOldSerialList();
+    populateComboboxes();
+    renderIssBasket();
+    renderIssSerialDropdown();
+    mPopOldSerialList();
   }
-  if(name==='return'){ document.getElementById('mr-date').value=today(); }
+  if(name==='return'){
+    document.getElementById('mr-date').value=today();
+    populateComboboxes();
+  }
   if(name==='reissue'){
     document.getElementById('mri-date').value=today();
-    populateDepts('mri-dept');
+    populateComboboxes();
   }
   document.getElementById('sh-'+name).classList.add('open');
 }
@@ -1024,6 +1057,7 @@ function renderMIssueList(){
 function mToggleIssSelect(id){
   if(issMSel.has(id)) issMSel.delete(id); else issMSel.add(id);
   renderMIssueList();
+  renderIssBasket(); // also updates serial dropdown
 }
 
 function renderMIssueBar(){
@@ -1031,6 +1065,19 @@ function renderMIssueBar(){
   const cnt=document.getElementById('iss-sel-count');
   if(issMSel.size>0){ bar.style.display='block'; cnt.textContent=`เลือกแล้ว ${issMSel.size} รายการ`; }
   else bar.style.display='none';
+}
+
+function renderIssSerialDropdown(){
+  const items=[...issMSel].map(id=>REGISTRY.find(r=>r.id===id)).filter(Boolean);
+  const block=document.getElementById('iss-serial-block');
+  const sel=document.getElementById('mi-serial-select');
+  if(!block||!sel) return;
+  const serialItems=items.filter(r=>r.hasSerial);
+  if(serialItems.length===0){ block.style.display='none'; return; }
+  block.style.display='block';
+  sel.innerHTML=serialItems.map(r=>
+    `<option value="${r.id}">${r.serial} — ${r.name} ${r.brand?'('+r.brand+')':''}</option>`
+  ).join('');
 }
 
 function renderIssBasket(){
@@ -1044,8 +1091,9 @@ function renderIssBasket(){
           <div style="font-family:monospace;font-size:11px;color:var(--accent);">${r.hasSerial ? r.serial : 'ไม่มี Serial'}</div>
           <div style="font-size:11px;color:var(--muted);">${r.type||''} ${r.brand?'· '+r.brand:''}</div>
         </div>
-        <button onclick="issMSel.delete('${r.id}');renderIssBasket();renderMIssueList();" style="background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
+        <button onclick="issMSel.delete('${r.id}');renderIssBasket();renderMIssueList();renderIssSerialDropdown();" style="background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:0 4px;">✕</button>
       </div>`).join('');
+  renderIssSerialDropdown();
 }
 
 function mPopOldSerialList(){
