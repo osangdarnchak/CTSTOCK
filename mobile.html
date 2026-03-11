@@ -1,0 +1,1359 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CT Stock">
+<title>CT Stock Mobile</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0d0f14; --card:#13161e; --card2:#1a1e2a; --border:#252a38;
+  --accent:#00d4ff; --accent2:#7c3aed; --green:#22c55e; --yellow:#f59e0b;
+  --red:#ef4444; --orange:#f97316; --fg:#e2e8f0; --muted:#64748b;
+  --safe-top:env(safe-area-inset-top,0px); --safe-bot:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--fg);height:100dvh;overflow:hidden;font-size:14px;}
+input,select,textarea{font-family:'Sarabun',sans-serif;}
+
+/* ── APP SHELL ── */
+#app{display:flex;flex-direction:column;height:100dvh;}
+
+/* ── TOPBAR ── */
+#topbar{
+  background:var(--card);border-bottom:1px solid var(--border);
+  padding:10px 16px 10px;
+  padding-top:calc(var(--safe-top) + 10px);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;gap:8px;
+}
+#topbar-left{display:flex;align-items:center;gap:10px;}
+#topbar-title{font-size:16px;font-weight:700;}
+#topbar-title span{color:var(--accent);}
+#sync-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s;}
+#sync-dot.ok{background:var(--green);}
+#sync-dot.err{background:var(--red);}
+#sync-dot.loading{background:var(--yellow);animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.tbtn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;}
+.tbtn:active{background:var(--card2);}
+
+/* ── PAGES ── */
+#pages{flex:1;overflow:hidden;position:relative;}
+.page{position:absolute;inset:0;overflow-y:auto;padding:14px 14px 80px;display:none;-webkit-overflow-scrolling:touch;}
+.page.active{display:block;}
+
+/* ── BOTTOM NAV ── */
+#nav{
+  background:var(--card);border-top:1px solid var(--border);
+  display:flex;flex-shrink:0;
+  padding-bottom:calc(var(--safe-bot) + 2px);
+}
+.nb{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  padding:8px 2px 4px;gap:2px;border:none;background:none;
+  color:var(--muted);font-family:'Sarabun',sans-serif;font-size:10px;
+  cursor:pointer;transition:color .2s;position:relative;
+}
+.nb .ni{font-size:22px;line-height:1.1;}
+.nb.active{color:var(--accent);}
+.nb .bdg{
+  position:absolute;top:5px;right:calc(50% - 18px);
+  background:var(--red);color:#fff;font-size:9px;font-weight:700;
+  min-width:15px;height:15px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;padding:0 3px;
+}
+
+/* ── CARDS ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;}
+.card-title{font-size:13px;font-weight:700;margin-bottom:10px;color:var(--fg);}
+
+/* ── KPI ── */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 12px;}
+.kpi-label{font-size:11px;color:var(--muted);margin-bottom:4px;}
+.kpi-val{font-size:24px;font-weight:700;line-height:1;}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:3px;}
+
+/* ── STATUS PILLS ── */
+.sp{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px;}
+.sp-stock{background:#00d4ff18;color:#00d4ff;}
+.sp-inuse{background:#f59e0b18;color:#f59e0b;}
+.sp-inspect{background:#a78bfa18;color:#a78bfa;}
+.sp-ok{background:#22c55e18;color:#22c55e;}
+.sp-scrap{background:#ef444418;color:#ef4444;}
+
+/* ── SEARCH ── */
+.search-bar{
+  display:flex;align-items:center;gap:8px;
+  background:var(--card2);border:1px solid var(--border);border-radius:10px;
+  padding:8px 12px;margin-bottom:12px;
+}
+.search-bar input{flex:1;background:none;border:none;color:var(--fg);font-size:13px;outline:none;}
+.search-bar input::placeholder{color:var(--muted);}
+
+/* ── LIST ITEMS ── */
+.tool-item{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:12px;margin-bottom:8px;
+}
+.tool-item-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;}
+.tool-name{font-size:13px;font-weight:700;color:var(--fg);}
+.tool-serial{font-size:11px;color:var(--accent);font-family:monospace;margin-top:2px;}
+.tool-meta{font-size:11px;color:var(--muted);margin-top:4px;}
+.tool-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;border-radius:10px;
+  font-family:'Sarabun',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:opacity .15s;}
+.btn:active{opacity:.75;}
+.btn-primary{background:var(--accent);color:#000;}
+.btn-green{background:var(--green);color:#000;}
+.btn-yellow{background:var(--yellow);color:#000;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-outline{background:none;border:1px solid var(--border);color:var(--fg);}
+.btn-sm{padding:5px 10px;font-size:12px;border-radius:8px;}
+.btn-full{width:100%;justify-content:center;}
+
+/* ── FAB ── */
+.fab{
+  position:fixed;right:18px;bottom:calc(var(--safe-bot) + 72px);
+  width:54px;height:54px;border-radius:27px;
+  background:var(--accent);color:#000;font-size:24px;
+  display:flex;align-items:center;justify-content:center;
+  border:none;cursor:pointer;z-index:50;
+  box-shadow:0 4px 20px rgba(0,212,255,.35);
+}
+.fab:active{transform:scale(.93);}
+
+/* ── MODAL / SHEET ── */
+.overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;
+  display:none;align-items:flex-end;justify-content:center;
+}
+.overlay.open{display:flex;}
+.sheet{
+  background:var(--card);border-radius:20px 20px 0 0;
+  width:100%;max-height:92dvh;overflow-y:auto;
+  padding:0 0 calc(var(--safe-bot)+16px);
+  animation:slideUp .25s ease;
+}
+@keyframes slideUp{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
+.sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0;}
+.sheet-head{padding:14px 18px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.sheet-title{font-size:16px;font-weight:700;}
+.sheet-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;padding:0 4px;}
+.sheet-body{padding:16px 18px;}
+.sheet-foot{padding:12px 18px 0;display:flex;gap:8px;}
+
+/* ── FORM ── */
+.fg{margin-bottom:14px;}
+.fg label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:600;}
+.fi{
+  width:100%;padding:10px 12px;background:var(--card2);
+  border:1px solid var(--border);border-radius:10px;
+  color:var(--fg);font-size:14px;font-family:'Sarabun',sans-serif;outline:none;
+}
+.fi:focus{border-color:var(--accent);}
+select.fi{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M6 8L0 0h12z' fill='%2364748b'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:6px;margin-bottom:14px;background:var(--card2);padding:4px;border-radius:10px;}
+.tab{flex:1;padding:7px;text-align:center;border-radius:8px;font-size:12px;font-weight:600;
+  cursor:pointer;color:var(--muted);border:none;background:none;font-family:'Sarabun',sans-serif;}
+.tab.active{background:var(--accent);color:#000;}
+
+/* ── CHECKLIST ── */
+.cl-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:var(--card2);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;cursor:pointer;
+}
+.cl-item.selected{border-color:var(--accent);background:#00d4ff0f;}
+.cl-check{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;}
+.cl-item.selected .cl-check{background:var(--accent);border-color:var(--accent);color:#000;font-size:13px;}
+.cl-info{flex:1;min-width:0;}
+.cl-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cl-sub{font-size:11px;color:var(--muted);}
+
+/* ── TIMELINE ── */
+.tl-item{display:flex;gap:10px;padding:8px 0;}
+.tl-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.tl-event{font-size:12px;font-weight:700;}
+.tl-meta{font-size:11px;color:var(--muted);}
+
+/* ── CHIPS ── */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;
+  font-size:11px;font-weight:600;background:var(--card2);border:1px solid var(--border);}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:40px 20px;color:var(--muted);}
+.empty-icon{font-size:40px;margin-bottom:8px;}
+
+/* ── TOAST ── */
+#toast{
+  position:fixed;top:calc(var(--safe-top)+60px);left:50%;transform:translateX(-50%);
+  background:#1e2535;border:1px solid var(--border);border-radius:10px;
+  padding:10px 18px;font-size:13px;z-index:999;display:none;
+  white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.4);
+}
+
+/* ── SECTION HEADER ── */
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.sec-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+
+/* ── PROGRESS BAR ── */
+.prog{height:6px;background:var(--card2);border-radius:3px;overflow:hidden;margin-top:6px;}
+.prog-fill{height:100%;border-radius:3px;transition:width .5s;}
+
+/* ── LIFECYCLE FLOW ── */
+.lc-flow{display:flex;align-items:center;gap:4px;overflow-x:auto;padding:4px 0;}
+.lc-step{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0;}
+.lc-circle{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid transparent;}
+.lc-label{font-size:9px;color:var(--muted);text-align:center;}
+.lc-arrow{color:var(--border);font-size:16px;flex-shrink:0;}
+
+/* ── RECENT TXN ── */
+.txn-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);}
+.txn-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.txn-info{flex:1;min-width:0;}
+.txn-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.txn-meta{font-size:11px;color:var(--muted);}
+.txn-badge{font-size:11px;font-weight:700;white-space:nowrap;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div id="topbar-left">
+      <div id="sync-dot"></div>
+      <div id="topbar-title">⚙ <span>CT</span> Stock</div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <span id="sync-txt" style="font-size:11px;color:var(--muted);"></span>
+      <button class="tbtn" onclick="syncNow()">🔄</button>
+      <button class="tbtn" onclick="openSheet('settings')">⚙</button>
+    </div>
+  </div>
+
+  <!-- PAGES -->
+  <div id="pages">
+
+    <!-- ── DASHBOARD ── -->
+    <div class="page active" id="pg-dashboard">
+      <div class="kpi-grid" id="kpiGrid"></div>
+
+      <!-- Lifecycle -->
+      <div class="card">
+        <div class="card-title">🔄 Lifecycle</div>
+        <div class="lc-flow" id="lcFlow"></div>
+      </div>
+
+      <!-- Chart -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+          <div class="card-title" style="margin:0;">📊 สรุปการเบิก</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <input list="m-tool-list" id="m-chart-tool" oninput="renderMChart()" placeholder="🔍 Tool..." style="font-size:11px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--fg);width:130px;">
+            <datalist id="m-tool-list"></datalist>
+            <select id="m-chart-month" onchange="renderMChart()" style="font-size:11px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--fg);">
+              <option value="">ทุกเดือน</option>
+            </select>
+            <select id="m-chart-mode" onchange="renderMChart()" style="font-size:11px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);background:var(--card2);color:var(--fg);">
+              <option value="dept">แยกแผนก</option>
+              <option value="month">แยกเดือน</option>
+            </select>
+          </div>
+        </div>
+        <div style="position:relative;height:180px;"><canvas id="mChartCanvas"></canvas></div>
+        <div id="mChartLegend" style="margin-top:10px;display:flex;flex-direction:column;gap:5px;"></div>
+      </div>
+
+      <!-- Recent txns -->
+      <div class="card">
+        <div class="sec-head">
+          <div class="card-title" style="margin:0;">🕐 ล่าสุด</div>
+        </div>
+        <div id="recentTxns"></div>
+      </div>
+    </div>
+
+    <!-- ── REGISTRY ── -->
+    <div class="page" id="pg-registry">
+      <div class="search-bar">
+        <span style="color:var(--muted);">🔍</span>
+        <input type="search" id="reg-search" placeholder="ค้นหา Tool / Serial..." oninput="renderMRegistry()">
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
+        <select class="fi" id="reg-filter-status" onchange="renderMRegistry()" style="flex:1;min-width:110px;font-size:12px;padding:7px 10px;">
+          <option value="">ทุกสถานะ</option>
+          <option value="stock">Stock</option>
+          <option value="inuse">In Use</option>
+          <option value="used_inspect">Inspect</option>
+          <option value="used_ok">Used OK</option>
+          <option value="scrapped">Scrapped</option>
+        </select>
+        <select class="fi" id="reg-filter-type" onchange="renderMRegistry()" style="flex:1;min-width:110px;font-size:12px;padding:7px 10px;">
+          <option value="">ทุกประเภท</option>
+        </select>
+      </div>
+      <div id="reg-count" style="font-size:11px;color:var(--muted);margin-bottom:8px;"></div>
+      <div id="regList"></div>
+    </div>
+
+    <!-- ── BUY ── -->
+    <div class="page" id="pg-buy">
+      <div class="card">
+        <div class="card-title">🛒 ประวัติการซื้อล่าสุด</div>
+        <div id="buyHistList"></div>
+      </div>
+    </div>
+
+    <!-- ── ISSUE ── -->
+    <div class="page" id="pg-issue">
+      <div class="search-bar">
+        <span style="color:var(--muted);">🔍</span>
+        <input type="search" id="iss-search" placeholder="ค้นหา Tool ที่อยู่ใน Stock..." oninput="renderMIssueList()">
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <select class="fi" id="iss-filter-type" onchange="renderMIssueList()" style="flex:1;font-size:12px;padding:7px 10px;">
+          <option value="">ทุกประเภท</option>
+        </select>
+      </div>
+      <div id="iss-selected-bar" style="display:none;" class="card" style="background:#00d4ff12;border-color:var(--accent);">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span id="iss-sel-count" style="font-size:13px;font-weight:700;color:var(--accent);"></span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-outline btn-sm" onclick="issMSel.clear();renderMIssueList();renderMIssueBar()">ล้าง</button>
+            <button class="btn btn-primary btn-sm" onclick="openSheet('issue')">เบิก →</button>
+          </div>
+        </div>
+      </div>
+      <div id="mIssueList"></div>
+    </div>
+
+    <!-- ── RETURN ── -->
+    <div class="page" id="pg-return">
+      <div class="card">
+        <div class="card-title">🔍 รอ Inspect</div>
+        <div id="inspectList"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">↩ In Use — เลือกเพื่อคืน</div>
+        <div id="returnInuseList"></div>
+      </div>
+    </div>
+
+  </div><!-- /pages -->
+
+  <!-- BOTTOM NAV -->
+  <div id="nav">
+    <button class="nb active" onclick="goPage('dashboard',this)">
+      <span class="ni">📊</span>หน้าหลัก
+    </button>
+    <button class="nb" onclick="goPage('registry',this)">
+      <span class="ni">🗂</span>Registry
+      <span class="bdg" id="nbdg-reg" style="display:none;"></span>
+    </button>
+    <button class="nb" onclick="goPage('buy',this)">
+      <span class="ni">🛒</span>นำเข้า
+    </button>
+    <button class="nb" onclick="goPage('issue',this)">
+      <span class="ni">📤</span>เบิก
+      <span class="bdg" id="nbdg-issue" style="display:none;"></span>
+    </button>
+    <button class="nb" onclick="goPage('return',this)">
+      <span class="ni">↩</span>คืน
+      <span class="bdg" id="nbdg-ret" style="display:none;"></span>
+    </button>
+  </div>
+
+</div><!-- /app -->
+
+<!-- FABs per page -->
+<button class="fab" id="fab-buy" style="display:none;" onclick="openSheet('buy')">＋</button>
+<button class="fab" id="fab-issue" style="display:none;" onclick="openSheet('issue')">📤</button>
+<button class="fab" id="fab-return" style="display:none;" onclick="openSheet('return')">↩</button>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ════════════════════════════════
+     SHEETS (MODALS)
+════════════════════════════════ -->
+
+<!-- BUY SHEET -->
+<div class="overlay" id="sh-buy">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">🛒 นำเข้า / ซื้อ Tool</div>
+      <button class="sheet-close" onclick="closeSheet('buy')">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="row2">
+        <div class="fg"><label>ประเภท</label>
+          <select class="fi" id="mb-type" onchange="mUpdateBuySerial()">
+            <option>Insert</option><option>Endmill</option><option>Tap</option><option>Drill</option>
+            <option>Ball</option><option>Reamer</option><option>Chamfer</option><option>Spot Drill</option>
+            <option>U-DRILL</option><option>THREAD MILL</option><option>center drill</option>
+            <option>Back Chamfer</option><option>ลวด wire cut</option><option>screw</option>
+          </select>
+        </div>
+        <div class="fg"><label>วันที่</label><input type="date" class="fi" id="mb-date"></div>
+      </div>
+      <div class="fg"><label>ชื่อ Tool *</label><input class="fi" id="mb-name" placeholder="e.g. DNMG150404" oninput="mUpdateBuySerial()"></div>
+      <div class="row2">
+        <div class="fg"><label>Brand</label><input class="fi" id="mb-brand" oninput="mUpdateBuySerial()"></div>
+        <div class="fg"><label>ราคา/ชิ้น</label><input type="number" class="fi" id="mb-price" placeholder="0"></div>
+      </div>
+      <div class="fg"><label>Supplier</label><input class="fi" id="mb-supplier"></div>
+
+      <!-- Serial mode -->
+      <div class="fg">
+        <label>Serial Mode</label>
+        <div class="tabs">
+          <button class="tab active" id="mbt-auto" onclick="mSetBuyMode('auto')">✨ Auto</button>
+          <button class="tab" id="mbt-manual" onclick="mSetBuyMode('manual')">✏️ กรอกเอง</button>
+          <button class="tab" id="mbt-none" onclick="mSetBuyMode('none')">🚫 ไม่มี</button>
+        </div>
+      </div>
+      <div id="mb-auto-block" class="fg">
+        <label>จำนวน</label>
+        <input type="number" class="fi" id="mb-autoQty" value="1" min="1" oninput="mUpdateBuySerial()">
+        <div id="mb-serial-preview" style="font-size:11px;color:var(--accent);margin-top:5px;font-family:monospace;"></div>
+      </div>
+      <div id="mb-manual-block" style="display:none;">
+        <div class="fg">
+          <label>เพิ่ม Serial</label>
+          <div style="display:flex;gap:6px;">
+            <input class="fi" id="mb-serial-inp" placeholder="กรอก Serial แล้ว Enter" style="flex:1;" onkeydown="if(event.key==='Enter'){mAddSerial();}">
+            <button class="btn btn-outline" onclick="mAddSerial()">+</button>
+          </div>
+        </div>
+        <div id="mb-serial-tags" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;"></div>
+      </div>
+      <div id="mb-none-block" style="display:none;" class="row2">
+        <div class="fg"><label>จำนวน</label><input type="number" class="fi" id="mb-qty" value="1" min="1"></div>
+        <div class="fg"><label>หน่วย</label><select class="fi" id="mb-unit"><option>PCS</option><option>SET</option><option>BOX</option></select></div>
+      </div>
+
+      <!-- Images -->
+      <div class="fg">
+        <label>📄 รูปใบเบิก</label>
+        <input type="file" accept="image/*" capture="environment" id="mb-receipt" onchange="mPreviewImg(this,'mb-receipt-prev')" style="display:none;">
+        <button class="btn btn-outline btn-full" onclick="document.getElementById('mb-receipt').click()">📷 ถ่าย / เลือกรูป</button>
+        <img id="mb-receipt-prev" style="display:none;width:100%;border-radius:8px;margin-top:6px;max-height:120px;object-fit:cover;">
+      </div>
+      <div class="fg">
+        <label>🔧 รูป Tool</label>
+        <input type="file" accept="image/*" capture="environment" id="mb-toolimg" onchange="mPreviewImg(this,'mb-toolimg-prev')" style="display:none;">
+        <button class="btn btn-outline btn-full" onclick="document.getElementById('mb-toolimg').click()">📷 ถ่าย / เลือกรูป</button>
+        <img id="mb-toolimg-prev" style="display:none;width:100%;border-radius:8px;margin-top:6px;max-height:120px;object-fit:cover;">
+      </div>
+
+      <div class="fg"><label>หมายเหตุ</label><textarea class="fi" id="mb-note" rows="2"></textarea></div>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeSheet('buy')">ยกเลิก</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="mSubmitBuy()">✓ บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- ISSUE SHEET -->
+<div class="overlay" id="sh-issue">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">📤 เบิกใช้งาน</div>
+      <button class="sheet-close" onclick="closeSheet('issue')">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div id="iss-basket" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:5px;"></div>
+      <div class="row2">
+        <div class="fg"><label>ผู้เบิก *</label><input class="fi" id="mi-person" placeholder="ชื่อ"></div>
+        <div class="fg"><label>วันที่</label><input type="date" class="fi" id="mi-date"></div>
+      </div>
+      <div class="fg"><label>แผนก</label>
+        <select class="fi" id="mi-dept">
+          <option>MC1</option><option>MC2</option><option>MC3</option><option>MC4</option>
+          <option>QC</option><option>Setup</option><option>Maintenance</option><option>อื่นๆ</option>
+        </select>
+      </div>
+      <div class="fg"><label>ประเภทการเบิก</label>
+        <select class="fi" id="mi-action" onchange="mToggleReplace()">
+          <option value="เบิกเพิ่ม">เบิกเพิ่ม</option>
+          <option value="เปลี่ยน">🔄 เปลี่ยน Tool</option>
+        </select>
+      </div>
+      <div id="mi-replace-block" style="display:none;">
+        <div class="fg">
+          <label>Serial เก่าที่ต้องการเปลี่ยน</label>
+          <input list="mi-old-serial-list" class="fi" id="mi-old-serial" placeholder="กรอกหรือเลือก Serial">
+          <datalist id="mi-old-serial-list"></datalist>
+        </div>
+      </div>
+      <div class="fg"><label>หมายเหตุ</label><input class="fi" id="mi-note" placeholder="(ถ้ามี)"></div>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeSheet('issue')">ยกเลิก</button>
+      <button class="btn btn-yellow" style="flex:2;" onclick="mSubmitIssue()">📤 เบิก</button>
+    </div>
+  </div>
+</div>
+
+<!-- RETURN SHEET -->
+<div class="overlay" id="sh-return">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">↩ คืน Tool</div>
+      <button class="sheet-close" onclick="closeSheet('return')">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div id="ret-tool-info" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;"></div>
+      <div class="row2">
+        <div class="fg"><label>ผู้คืน *</label><input class="fi" id="mr-person" placeholder="ชื่อ"></div>
+        <div class="fg"><label>วันที่</label><input type="date" class="fi" id="mr-date"></div>
+      </div>
+      <div class="fg"><label>สภาพ</label>
+        <select class="fi" id="mr-status">
+          <option value="used_inspect">🔍 รอ Inspect</option>
+          <option value="used_ok">✓ Used OK</option>
+          <option value="scrapped">❌ Scrap</option>
+        </select>
+      </div>
+      <div class="fg"><label>หมายเหตุ</label><input class="fi" id="mr-note" placeholder="(ถ้ามี)"></div>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeSheet('return')">ยกเลิก</button>
+      <button class="btn btn-green" style="flex:2;" onclick="mSubmitReturn()">↩ บันทึกคืน</button>
+    </div>
+  </div>
+</div>
+
+<!-- INSPECT SHEET -->
+<div class="overlay" id="sh-inspect">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">🔍 Inspect Tool</div>
+      <button class="sheet-close" onclick="closeSheet('inspect')">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div id="insp-tool-info" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;"></div>
+      <div class="fg"><label>ผล Inspect</label>
+        <select class="fi" id="minsp-result">
+          <option value="used_ok">✓ ผ่าน — ใช้ได้อีก</option>
+          <option value="scrapped">❌ ไม่ผ่าน — Scrap</option>
+        </select>
+      </div>
+      <div class="fg"><label>หมายเหตุ</label><input class="fi" id="minsp-note" placeholder="(ถ้ามี)"></div>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeSheet('inspect')">ยกเลิก</button>
+      <button class="btn btn-primary" style="flex:2;" onclick="mSubmitInspect()">✓ บันทึกผล</button>
+    </div>
+  </div>
+</div>
+
+<!-- REISSUE SHEET -->
+<div class="overlay" id="sh-reissue">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">♻ เบิก Used Tool</div>
+      <button class="sheet-close" onclick="closeSheet('reissue')">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div id="ri-tool-info" style="background:var(--card2);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;"></div>
+      <div class="row2">
+        <div class="fg"><label>ผู้เบิก *</label><input class="fi" id="mri-person" placeholder="ชื่อ"></div>
+        <div class="fg"><label>วันที่</label><input type="date" class="fi" id="mri-date"></div>
+      </div>
+      <div class="fg"><label>แผนก</label>
+        <select class="fi" id="mri-dept">
+          <option>MC1</option><option>MC2</option><option>MC3</option><option>MC4</option>
+          <option>QC</option><option>Setup</option><option>Maintenance</option><option>อื่นๆ</option>
+        </select>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeSheet('reissue')">ยกเลิก</button>
+      <button class="btn btn-green" style="flex:2;" onclick="mSubmitReissue()">♻ เบิก Used</button>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY SHEET -->
+<div class="overlay" id="sh-history">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">📋 ประวัติ Tool</div>
+      <button class="sheet-close" onclick="closeSheet('history')">✕</button>
+    </div>
+    <div class="sheet-body" id="hist-body"></div>
+  </div>
+</div>
+
+<!-- SETTINGS SHEET -->
+<div class="overlay" id="sh-settings">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">⚙ ตั้งค่า</div>
+      <button class="sheet-close" onclick="closeSheet('settings')">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div class="fg"><label>GAS URL</label>
+        <input class="fi" id="m-gas-url" placeholder="https://script.google.com/...">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="mSaveGasUrl()" style="margin-bottom:12px;">💾 บันทึก URL</button>
+      <button class="btn btn-outline btn-full" onclick="syncNow()">🔄 Sync ข้อมูลจาก Cloud</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     JAVASCRIPT
+══════════════════════════════ -->
+<script>
+const GAS_DEFAULT = 'https://script.google.com/macros/s/AKfycbz6LRS-4iZ82y630n0JJCpjMaQmjisOXSJMqpJMcPlXu6Qma7TpxzYxCRAITftXK4SS/exec';
+const LS_KEY = 'ctstock_v3';
+let GAS_URL = localStorage.getItem('ctstock_gas_url') || GAS_DEFAULT;
+
+let REGISTRY = [];
+let TXNS = [];
+let BRAND_ABBR = {SECO:'SEC',SANDVIK:'SAN',KENNAMETAL:'KEN',ISCAR:'ISC',MITSUBISHI:'MIT',KYOCERA:'KYO',TUNGALOY:'TNG',WALTER:'WAL',KORLOY:'KOR',OSG:'OSG',YG1:'YG1',GARR:'GAR',GUHRING:'GUH',WIDIA:'WID'};
+let TYPE_PREFIX = {Insert:'INS',Endmill:'EML',Tap:'TAP',Drill:'DRL',Ball:'BAL',Reamer:'RMR',Chamfer:'CHM','Spot Drill':'SPT','U-DRILL':'UDR','THREAD MILL':'THM','center drill':'CDR','Back Chamfer':'BCH','ลวด wire cut':'WCT',screw:'SCW'};
+let saveTimer = null;
+let mBuyMode = 'auto';
+let mBuySerials = [];
+let mBuyImageData = { receipt: null, tool: null };
+let issMSel = new Set();
+let retTargetId = null;
+let inspTargetId = null;
+let riTargetId = null;
+
+// ── Utils ──
+const uid = () => Math.random().toString(36).slice(2,8).toUpperCase();
+const today = () => new Date().toISOString().split('T')[0];
+const statusPill = s => ({
+  stock:'<span class="sp sp-stock">📦 Stock</span>',
+  inuse:'<span class="sp sp-inuse">🔧 In Use</span>',
+  used_inspect:'<span class="sp sp-inspect">🔍 Inspect</span>',
+  used_ok:'<span class="sp sp-ok">✓ Used OK</span>',
+  scrapped:'<span class="sp sp-scrap">❌ Scrapped</span>'
+}[s] || `<span class="sp">${s}</span>`);
+const eventLabel = e => ({buy:'🛒 ซื้อ',issue:'📤 เบิก',return:'↩ คืน',reissue:'♻ Used',inspect:'🔍 Inspect'}[e]||e);
+const eventColor = e => ({buy:'var(--accent)',issue:'var(--yellow)',return:'var(--orange)',reissue:'var(--green)',inspect:'#a78bfa'}[e]||'var(--muted)');
+
+// ── Toast ──
+let toastTimer;
+function toast(msg, dur=2500){
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.style.display='block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.style.display='none'; }, dur);
+}
+
+// ── Navigation ──
+let currentPage = 'dashboard';
+function goPage(name, btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('pg-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  currentPage = name;
+  // FABs
+  document.getElementById('fab-buy').style.display = name==='buy' ? 'flex':'none';
+  document.getElementById('fab-issue').style.display = name==='issue' ? 'flex':'none';
+  document.getElementById('fab-return').style.display = name==='return' ? 'flex':'none';
+  // Render
+  if(name==='dashboard') renderDash();
+  if(name==='registry') renderMRegistry();
+  if(name==='buy') renderBuyHist();
+  if(name==='issue') renderMIssueList();
+  if(name==='return') renderReturnPage();
+}
+
+// ── Sheet ──
+function openSheet(name){
+  if(name==='buy'){ document.getElementById('mb-date').value=today(); mSetBuyMode('auto'); mUpdateBuySerial(); mBuySerials=[]; mBuyImageData={receipt:null,tool:null}; document.getElementById('mb-serial-tags').innerHTML=''; document.getElementById('mb-receipt-prev').style.display='none'; document.getElementById('mb-toolimg-prev').style.display='none'; }
+  if(name==='issue'){ document.getElementById('mi-date').value=today(); renderIssBasket(); mPopOldSerialList(); }
+  if(name==='return'){ document.getElementById('mr-date').value=today(); }
+  if(name==='reissue'){ document.getElementById('mri-date').value=today(); }
+  document.getElementById('sh-'+name).classList.add('open');
+}
+function closeSheet(name){ document.getElementById('sh-'+name).classList.remove('open'); }
+
+// ── Sync dot ──
+function setSyncDot(st){ const d=document.getElementById('sync-dot'); d.className=''; if(st) d.classList.add(st); }
+function setSyncTxt(t){ document.getElementById('sync-txt').textContent=t; }
+
+// ── LocalStorage ──
+function saveLocal(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({savedAt:new Date().toISOString(),REGISTRY,TXNS,META:{BRAND_ABBR,TYPE_PREFIX}})); }catch(e){}
+}
+function loadLocal(){
+  try{
+    const raw=localStorage.getItem(LS_KEY);
+    if(!raw) return false;
+    const d=JSON.parse(raw);
+    if(d.REGISTRY&&d.TXNS){
+      REGISTRY.length=0; d.REGISTRY.forEach(r=>REGISTRY.push(r));
+      TXNS.length=0; d.TXNS.forEach(t=>TXNS.push(t));
+      if(d.META?.BRAND_ABBR) Object.assign(BRAND_ABBR,d.META.BRAND_ABBR);
+      if(d.META?.TYPE_PREFIX) Object.assign(TYPE_PREFIX,d.META.TYPE_PREFIX);
+      return d.savedAt;
+    }
+  }catch(e){}
+  return false;
+}
+
+// ── JSONP ──
+function jsonpCall(url){
+  return new Promise((res,rej)=>{
+    const cb='_cb'+Date.now();
+    const s=document.createElement('script');
+    const t=setTimeout(()=>{ cleanup(); rej(new Error('timeout')); },15000);
+    function cleanup(){ delete window[cb]; document.head.removeChild(s); clearTimeout(t); }
+    window[cb]=(data)=>{ cleanup(); res(data); };
+    s.src=url+(url.includes('?')?'&':'?')+'callback='+cb;
+    s.onerror=()=>{ cleanup(); rej(new Error('load failed')); };
+    document.head.appendChild(s);
+  });
+}
+
+// ── Load from GAS ──
+async function loadFromGAS(){
+  if(!GAS_URL) return false;
+  setSyncDot('loading'); setSyncTxt('กำลังโหลด...');
+  try{
+    const d=await jsonpCall(GAS_URL+'?action=load');
+    if(d.error) throw new Error(d.error);
+    if(!d.REGISTRY||d.REGISTRY.length===0) return false;
+    REGISTRY.length=0;
+    d.REGISTRY.forEach(r=>{
+      if(typeof r.hasSerial==='string') r.hasSerial=r.hasSerial==='true'||r.hasSerial==='TRUE';
+      if(!Array.isArray(r.history)) r.history=r.history?JSON.parse(r.history):[];
+      REGISTRY.push(r);
+    });
+    TXNS.length=0;
+    d.TXNS.forEach(t=>{ if(typeof t.hasSerial==='string') t.hasSerial=t.hasSerial==='true'||t.hasSerial==='TRUE'; TXNS.push(t); });
+    if(d.META){ if(d.META.BRAND_ABBR) Object.assign(BRAND_ABBR,d.META.BRAND_ABBR); if(d.META.TYPE_PREFIX) Object.assign(TYPE_PREFIX,d.META.TYPE_PREFIX); }
+    saveLocal();
+    setSyncDot('ok'); setSyncTxt(new Date().toLocaleTimeString('th'));
+    return true;
+  }catch(e){ setSyncDot('err'); setSyncTxt('Sync ไม่ได้'); return false; }
+}
+
+// ── Save to GAS ──
+async function saveToGAS(){
+  if(!GAS_URL) return;
+  setSyncDot('loading');
+  try{
+    await fetch(GAS_URL,{method:'POST',body:JSON.stringify({REGISTRY,TXNS,META:{BRAND_ABBR,TYPE_PREFIX}})});
+    setSyncDot('ok'); setSyncTxt(new Date().toLocaleTimeString('th'));
+  }catch(e){ setSyncDot('err'); setSyncTxt('บันทึกไม่ได้'); }
+}
+
+function scheduleSave(){
+  saveLocal();
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(()=>saveToGAS(),1500);
+}
+
+async function syncNow(){
+  const ok=await loadFromGAS();
+  if(ok){ refreshCurrent(); updateBadges(); toast('✅ Sync สำเร็จ'); }
+  else toast('⚠ Sync ไม่สำเร็จ');
+}
+
+function refreshCurrent(){
+  if(currentPage==='dashboard') renderDash();
+  if(currentPage==='registry') renderMRegistry();
+  if(currentPage==='buy') renderBuyHist();
+  if(currentPage==='issue') renderMIssueList();
+  if(currentPage==='return') renderReturnPage();
+}
+
+// ── Badges ──
+function updateBadges(){
+  const stock=REGISTRY.filter(r=>r.status==='stock').length;
+  const insp=REGISTRY.filter(r=>r.status==='used_inspect').length;
+  const inuse=REGISTRY.filter(r=>r.status==='inuse').length;
+  const el=(id,n)=>{ const e=document.getElementById(id); if(e){e.textContent=n;e.style.display=n>0?'flex':'none';} };
+  el('nbdg-reg',stock);
+  el('nbdg-issue',stock);
+  el('nbdg-ret',insp);
+}
+
+// ═══════════════════════════════
+//  DASHBOARD
+// ═══════════════════════════════
+let mChartInst=null;
+function renderDash(){
+  const stock=REGISTRY.filter(r=>r.status==='stock').length;
+  const inuse=REGISTRY.filter(r=>r.status==='inuse').length;
+  const inspect=REGISTRY.filter(r=>r.status==='used_inspect').length;
+  const usedok=REGISTRY.filter(r=>r.status==='used_ok').length;
+  const total=REGISTRY.length;
+
+  document.getElementById('kpiGrid').innerHTML=`
+    <div class="kpi">
+      <div class="kpi-label">📦 Stock</div>
+      <div class="kpi-val" style="color:var(--accent);">${stock}</div>
+      <div class="prog"><div class="prog-fill" style="width:${total?Math.round(stock/total*100):0}%;background:var(--accent);"></div></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">🔧 In Use</div>
+      <div class="kpi-val" style="color:var(--yellow);">${inuse}</div>
+      <div class="prog"><div class="prog-fill" style="width:${total?Math.round(inuse/total*100):0}%;background:var(--yellow);"></div></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">🔍 Inspect</div>
+      <div class="kpi-val" style="color:#a78bfa;">${inspect}</div>
+      <div class="kpi-sub">${inspect>0?'รอตรวจ':'ไม่มี'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">✓ Used OK</div>
+      <div class="kpi-val" style="color:var(--green);">${usedok}</div>
+      <div class="kpi-sub">พร้อมเบิกซ้ำ</div>
+    </div>`;
+
+  // Lifecycle
+  const steps=[
+    {icon:'🛒',label:'ซื้อ',color:'var(--accent)',count:TXNS.filter(t=>t.event==='buy').length},
+    {icon:'📦',label:'Stock',color:'var(--accent)',count:stock},
+    {icon:'📤',label:'เบิก',color:'var(--yellow)',count:TXNS.filter(t=>t.event==='issue').length},
+    {icon:'↩',label:'คืน',color:'var(--orange)',count:TXNS.filter(t=>t.event==='return').length},
+    {icon:'🔍',label:'Inspect',color:'#a78bfa',count:inspect},
+    {icon:'✓',label:'Used OK',color:'var(--green)',count:usedok},
+  ];
+  document.getElementById('lcFlow').innerHTML=steps.map((s,i)=>`
+    ${i>0?'<span class="lc-arrow">›</span>':''}
+    <div class="lc-step">
+      <div class="lc-circle" style="background:${s.color}22;border-color:${s.color};">
+        <span style="font-size:16px;">${s.icon}</span>
+      </div>
+      <div class="lc-label">${s.label}</div>
+      <div style="font-size:11px;font-weight:700;color:${s.color};">${s.count}</div>
+    </div>`).join('');
+
+  renderMChart();
+  renderRecentTxns();
+  initMChartFilters();
+}
+
+function initMChartFilters(){
+  const issues=TXNS.filter(t=>t.event==='issue');
+  const dl=document.getElementById('m-tool-list');
+  if(dl){ const tools=[...new Set(issues.map(t=>t.name||''))].filter(Boolean).sort(); dl.innerHTML=tools.map(n=>`<option value="${n}">`).join(''); }
+  const ms=document.getElementById('m-chart-month');
+  if(ms){ const cur=ms.value; const months=[...new Set(issues.map(t=>t.date?t.date.slice(0,7):''))].filter(Boolean).sort().reverse(); ms.innerHTML=`<option value="">ทุกเดือน</option>`+months.map(m=>`<option value="${m}" ${m===cur?'selected':''}>${m}</option>`).join(''); }
+}
+
+function renderMChart(){
+  const selTool=document.getElementById('m-chart-tool')?.value||'';
+  const selMonth=document.getElementById('m-chart-month')?.value||'';
+  const mode=document.getElementById('m-chart-mode')?.value||'dept';
+  const colors=['#00d4ff','#f59e0b','#a78bfa','#22c55e','#ef4444','#fb923c','#38bdf8','#f472b6','#84cc16','#e879f9'];
+  let issues=TXNS.filter(t=>t.event==='issue');
+  if(selTool) issues=issues.filter(t=>(t.name||'').toLowerCase().includes(selTool.toLowerCase()));
+  if(selMonth) issues=issues.filter(t=>t.date?.startsWith(selMonth));
+  const groups={};
+  issues.forEach(t=>{
+    const key=mode==='dept'?(t.dept||'ไม่ระบุ'):(t.date?t.date.slice(0,7):'ไม่ระบุ');
+    if(!groups[key]) groups[key]=0;
+    groups[key]+=(t.qty||1);
+  });
+  const sorted=Object.entries(groups).sort((a,b)=>mode==='month'?a[0].localeCompare(b[0]):b[1]-a[1]);
+  const ctx=document.getElementById('mChartCanvas');
+  if(mChartInst){ mChartInst.destroy(); mChartInst=null; }
+  if(!ctx||sorted.length===0){ document.getElementById('mChartLegend').innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px;">ไม่มีข้อมูล</div>'; return; }
+  mChartInst=new Chart(ctx,{
+    type:'bar',
+    data:{labels:sorted.map(x=>x[0]),datasets:[{data:sorted.map(x=>x[1]),backgroundColor:sorted.map((_,i)=>colors[i%colors.length]),borderRadius:6,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y} ชิ้น`}}},scales:{x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#1a1e2a'}},y:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#1a1e2a'},beginAtZero:true}}}
+  });
+  document.getElementById('mChartLegend').innerHTML=sorted.map(([k,v],i)=>`
+    <div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+      <div style="width:10px;height:10px;border-radius:3px;background:${colors[i%colors.length]};flex-shrink:0;"></div>
+      <span style="flex:1;">${k}</span>
+      <span style="font-family:monospace;color:var(--accent);font-weight:700;">${v} ชิ้น</span>
+    </div>`).join('');
+}
+
+function renderRecentTxns(){
+  const recent=[...TXNS].reverse().slice(0,8);
+  document.getElementById('recentTxns').innerHTML = recent.length===0
+    ? '<div class="empty"><div class="empty-icon">📭</div>ยังไม่มีรายการ</div>'
+    : recent.map(t=>`
+    <div class="txn-row">
+      <div class="txn-icon" style="background:${eventColor(t.event)}22;">${{buy:'🛒',issue:'📤',return:'↩',reissue:'♻',inspect:'🔍'}[t.event]||'📋'}</div>
+      <div class="txn-info">
+        <div class="txn-name">${t.name||'-'}</div>
+        <div class="txn-meta">${t.date||''} ${t.dept?'· '+t.dept:''} ${t.person?'· '+t.person:''}</div>
+      </div>
+      <div class="txn-badge" style="color:${eventColor(t.event)};">${eventLabel(t.event)}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════
+//  REGISTRY
+// ═══════════════════════════════
+function renderMRegistry(){
+  const q=(document.getElementById('reg-search')?.value||'').toLowerCase();
+  const fs=document.getElementById('reg-filter-status')?.value||'';
+  const ft=document.getElementById('reg-filter-type')?.value||'';
+
+  // Populate type filter
+  const ftEl=document.getElementById('reg-filter-type');
+  if(ftEl&&ftEl.options.length<=1){
+    const types=[...new Set(REGISTRY.map(r=>r.type||''))].filter(Boolean).sort();
+    types.forEach(t=>{ const o=document.createElement('option');o.value=t;o.textContent=t;ftEl.appendChild(o); });
+  }
+
+  let list=REGISTRY;
+  if(q) list=list.filter(r=>(r.name||'').toLowerCase().includes(q)||(r.serial||'').toLowerCase().includes(q)||(r.brand||'').toLowerCase().includes(q));
+  if(fs) list=list.filter(r=>r.status===fs);
+  if(ft) list=list.filter(r=>r.type===ft);
+
+  document.getElementById('reg-count').textContent=`แสดง ${list.length} / ${REGISTRY.length} รายการ`;
+
+  if(list.length===0){ document.getElementById('regList').innerHTML='<div class="empty"><div class="empty-icon">🔍</div>ไม่พบ Tool ที่ค้นหา</div>'; return; }
+
+  document.getElementById('regList').innerHTML=list.slice(0,80).map(r=>`
+    <div class="tool-item">
+      <div class="tool-item-top">
+        <div>
+          <div class="tool-name">${r.name||'-'} <span style="font-size:11px;color:var(--muted);font-weight:400;">${r.type||''}</span></div>
+          ${r.hasSerial?`<div class="tool-serial">${r.serial}</div>`:'<div style="font-size:11px;color:var(--muted);">ไม่มี Serial · qty: '+(r.qty||1)+'</div>'}
+        </div>
+        <div>${statusPill(r.status)}</div>
+      </div>
+      <div class="tool-meta">${r.brand||''} ${r.price?'· ฿'+r.price.toLocaleString('th'):''} ${r.holder?'· 👤 '+r.holder:''} ${r.dept?'· '+r.dept:''}</div>
+      <div class="tool-actions">
+        <button class="btn btn-outline btn-sm" onclick="openMHistory('${r.id}')">📋 ประวัติ</button>
+        ${r.status==='stock'?`<button class="btn btn-sm btn-yellow" onclick="mQuickIssue('${r.id}')">📤 เบิก</button>`:''}
+        ${r.status==='inuse'?`<button class="btn btn-sm btn-green" onclick="mQuickReturn('${r.id}')">↩ คืน</button>`:''}
+        ${r.status==='used_inspect'?`<button class="btn btn-sm" style="background:#a78bfa22;color:#a78bfa;" onclick="mQuickInspect('${r.id}')">🔍 Inspect</button>`:''}
+        ${r.status==='used_ok'?`<button class="btn btn-sm btn-green" onclick="mQuickReissue('${r.id}')">♻ เบิกซ้ำ</button>`:''}
+      </div>
+    </div>`).join('')+(list.length>80?`<div style="text-align:center;color:var(--muted);font-size:12px;padding:12px;">แสดง 80 รายการแรก (ค้นหาเพื่อกรองเพิ่ม)</div>`:'');
+}
+
+// ═══════════════════════════════
+//  BUY HISTORY
+// ═══════════════════════════════
+function renderBuyHist(){
+  const buys=TXNS.filter(t=>t.event==='buy').reverse().slice(0,30);
+  document.getElementById('buyHistList').innerHTML = buys.length===0
+    ? '<div class="empty"><div class="empty-icon">🛒</div>ยังไม่มีประวัติการซื้อ</div>'
+    : buys.map(t=>`
+      <div class="txn-row">
+        <div class="txn-icon" style="background:#00d4ff22;">🛒</div>
+        <div class="txn-info">
+          <div class="txn-name">${t.name||'-'} <span style="color:var(--muted);font-size:11px;">${t.hasSerial?t.serial:'qty: '+(t.qty||1)}</span></div>
+          <div class="txn-meta">${t.date||''} ${t.supplier?'· '+t.supplier:''} ${t.price?'· ฿'+Number(t.price).toLocaleString('th'):''}</div>
+        </div>
+        <span style="font-size:11px;color:var(--accent);">${t.brand||''}</span>
+      </div>`).join('');
+}
+
+// ═══════════════════════════════
+//  ISSUE LIST
+// ═══════════════════════════════
+function renderMIssueList(){
+  const q=(document.getElementById('iss-search')?.value||'').toLowerCase();
+  const ft=document.getElementById('iss-filter-type')?.value||'';
+
+  // Populate type filter
+  const ftEl=document.getElementById('iss-filter-type');
+  if(ftEl&&ftEl.options.length<=1){
+    const types=[...new Set(REGISTRY.filter(r=>r.status==='stock').map(r=>r.type||''))].filter(Boolean).sort();
+    types.forEach(t=>{ const o=document.createElement('option');o.value=t;o.textContent=t;ftEl.appendChild(o); });
+  }
+
+  let list=REGISTRY.filter(r=>r.status==='stock');
+  if(q) list=list.filter(r=>(r.name||'').toLowerCase().includes(q)||(r.serial||'').toLowerCase().includes(q));
+  if(ft) list=list.filter(r=>r.type===ft);
+
+  renderMIssueBar();
+
+  document.getElementById('mIssueList').innerHTML = list.length===0
+    ? '<div class="empty"><div class="empty-icon">📦</div>ไม่มี Tool ใน Stock</div>'
+    : list.map(r=>`
+      <div class="cl-item ${issMSel.has(r.id)?'selected':''}" id="mirow-${r.id}" onclick="mToggleIssSelect('${r.id}')">
+        <div class="cl-check">${issMSel.has(r.id)?'✓':''}</div>
+        <div class="cl-info">
+          <div class="cl-name">${r.name||'-'} <span style="color:var(--muted);font-size:10px;">${r.type||''}</span></div>
+          <div class="cl-sub">${r.hasSerial?r.serial:'ไม่มี Serial'} ${r.brand?'· '+r.brand:''}</div>
+        </div>
+      </div>`).join('');
+}
+
+function mToggleIssSelect(id){
+  if(issMSel.has(id)) issMSel.delete(id); else issMSel.add(id);
+  renderMIssueList();
+}
+
+function renderMIssueBar(){
+  const bar=document.getElementById('iss-selected-bar');
+  const cnt=document.getElementById('iss-sel-count');
+  if(issMSel.size>0){ bar.style.display='block'; cnt.textContent=`เลือกแล้ว ${issMSel.size} รายการ`; }
+  else bar.style.display='none';
+}
+
+function renderIssBasket(){
+  const items=[...issMSel].map(id=>REGISTRY.find(r=>r.id===id)).filter(Boolean);
+  document.getElementById('iss-basket').innerHTML = items.length===0
+    ? '<span style="font-size:12px;color:var(--muted);">ไม่มี Tool ที่เลือก</span>'
+    : items.map(r=>`<span class="chip">${r.name||'-'} ${r.hasSerial?'<span style="font-family:monospace;color:var(--accent);">'+r.serial+'</span>':''}</span>`).join('');
+}
+
+function mPopOldSerialList(){
+  const inuse=REGISTRY.filter(r=>r.status==='inuse'&&r.hasSerial);
+  document.getElementById('mi-old-serial-list').innerHTML=inuse.map(r=>`<option value="${r.serial}">${r.serial} — ${r.name}${r.holder?' ('+r.holder+')':''}</option>`).join('');
+}
+
+function mToggleReplace(){
+  const act=document.getElementById('mi-action').value;
+  document.getElementById('mi-replace-block').style.display=act==='เปลี่ยน'?'block':'none';
+}
+
+// ═══════════════════════════════
+//  RETURN PAGE
+// ═══════════════════════════════
+function renderReturnPage(){
+  // Inspect list
+  const inspList=REGISTRY.filter(r=>r.status==='used_inspect');
+  document.getElementById('inspectList').innerHTML = inspList.length===0
+    ? '<div style="color:var(--muted);font-size:13px;">ไม่มี Tool รอ Inspect</div>'
+    : inspList.map(r=>`
+      <div class="tool-item">
+        <div class="tool-item-top">
+          <div>
+            <div class="tool-name">${r.name||'-'}</div>
+            ${r.hasSerial?`<div class="tool-serial">${r.serial}</div>`:''}
+          </div>
+          ${statusPill(r.status)}
+        </div>
+        <div class="tool-meta">${r.brand||''} ${r.dept?'· แผนก '+r.dept:''}</div>
+        <div class="tool-actions">
+          <button class="btn btn-sm" style="background:#a78bfa22;color:#a78bfa;" onclick="mQuickInspect('${r.id}')">🔍 Inspect ตอนนี้</button>
+        </div>
+      </div>`).join('');
+
+  // Inuse list for return
+  const inuse=REGISTRY.filter(r=>r.status==='inuse');
+  document.getElementById('returnInuseList').innerHTML = inuse.length===0
+    ? '<div style="color:var(--muted);font-size:13px;">ไม่มี Tool ที่ใช้งานอยู่</div>'
+    : inuse.map(r=>`
+      <div class="tool-item">
+        <div class="tool-item-top">
+          <div>
+            <div class="tool-name">${r.name||'-'}</div>
+            ${r.hasSerial?`<div class="tool-serial">${r.serial}</div>`:''}
+          </div>
+          ${statusPill(r.status)}
+        </div>
+        <div class="tool-meta">${r.holder?'👤 '+r.holder:''} ${r.dept?'· '+r.dept:''}</div>
+        <div class="tool-actions">
+          <button class="btn btn-sm btn-green" onclick="mQuickReturn('${r.id}')">↩ คืน</button>
+        </div>
+      </div>`).join('');
+}
+
+// ═══════════════════════════════
+//  QUICK ACTIONS
+// ═══════════════════════════════
+function mQuickIssue(id){
+  issMSel.clear(); issMSel.add(id);
+  openSheet('issue'); renderIssBasket();
+}
+function mQuickReturn(id){
+  retTargetId=id;
+  const r=REGISTRY.find(x=>x.id===id);
+  if(!r) return;
+  document.getElementById('ret-tool-info').innerHTML=`<strong>${r.name}</strong> ${r.hasSerial?`<span style="font-family:monospace;color:var(--accent);"> · ${r.serial}</span>`:''}<br><span style="color:var(--muted);font-size:12px;">${r.holder?'👤 '+r.holder:''} ${r.dept?'· '+r.dept:''}</span>`;
+  openSheet('return');
+}
+function mQuickInspect(id){
+  inspTargetId=id;
+  const r=REGISTRY.find(x=>x.id===id);
+  if(!r) return;
+  document.getElementById('insp-tool-info').innerHTML=`<strong>${r.name}</strong>${r.hasSerial?` <span style="font-family:monospace;color:var(--accent);">${r.serial}</span>`:''}`;
+  document.getElementById('minsp-note').value='';
+  openSheet('inspect');
+}
+function mQuickReissue(id){
+  riTargetId=id;
+  const r=REGISTRY.find(x=>x.id===id);
+  if(!r) return;
+  document.getElementById('ri-tool-info').innerHTML=`<strong>${r.name}</strong>${r.hasSerial?` <span style="font-family:monospace;color:var(--accent);">${r.serial}</span>`:''} ${r.price?`<br><span style="color:var(--green);font-size:12px;">ประหยัด: ฿${Number(r.price).toLocaleString('th')}</span>`:''}`;
+  openSheet('reissue');
+}
+function openMHistory(id){
+  const r=REGISTRY.find(x=>x.id===id);
+  if(!r) return;
+  const hist=[...(r.history||[])].reverse();
+  document.getElementById('hist-body').innerHTML=`
+    <div style="margin-bottom:12px;">
+      <div style="font-size:15px;font-weight:700;">${r.name}</div>
+      ${r.hasSerial?`<div style="font-family:monospace;color:var(--accent);font-size:13px;">${r.serial}</div>`:''}
+      <div style="margin-top:6px;">${statusPill(r.status)}</div>
+    </div>
+    ${hist.length===0?'<div style="color:var(--muted);">ไม่มีประวัติ</div>':hist.map(h=>`
+      <div class="tl-item">
+        <div class="tl-dot" style="background:${eventColor(h.event)};"></div>
+        <div><div class="tl-event" style="color:${eventColor(h.event)};">${eventLabel(h.event)}</div>
+        <div class="tl-meta">${h.date||''} ${h.person?'· '+h.person:''} ${h.note?'· '+h.note:''}</div></div>
+      </div>`).join('')}`;
+  openSheet('history');
+}
+
+// ═══════════════════════════════
+//  BUY
+// ═══════════════════════════════
+function mSetBuyMode(mode){
+  mBuyMode=mode;
+  ['auto','manual','none'].forEach(m=>{
+    document.getElementById('mbt-'+m).classList.toggle('active',m===mode);
+    document.getElementById('mb-'+m+'-block').style.display=m===mode?'':'none';
+  });
+  mUpdateBuySerial();
+}
+function mUpdateBuySerial(){
+  if(mBuyMode!=='auto') return;
+  const type=document.getElementById('mb-type').value;
+  const name=document.getElementById('mb-name').value.trim();
+  const brand=document.getElementById('mb-brand').value.trim();
+  const qty=parseInt(document.getElementById('mb-autoQty')?.value)||1;
+  const prev=document.getElementById('mb-serial-preview');
+  if(!prev) return;
+  if(!name){ prev.textContent=''; return; }
+  const tp=TYPE_PREFIX[type]||type.slice(0,3).toUpperCase();
+  const yr=new Date().getFullYear().toString().slice(-2);
+  const nameKey=name.slice(0,6).toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const brandKey=brand?(BRAND_ABBR[brand.toUpperCase()]||brand.slice(0,3).toUpperCase()):'GEN';
+  const prefix=`${tp}-${yr}-${nameKey}-${brandKey}`;
+  const existing=REGISTRY.filter(r=>r.serial&&r.serial.startsWith(`${tp}-${yr}-${nameKey}-`)).length;
+  const serials=Array.from({length:qty},(_,i)=>`${prefix}-${String(existing+i+1).padStart(2,'0')}`);
+  prev.textContent=serials.slice(0,3).join(', ')+(qty>3?` ... (${qty} ชิ้น)`:'');
+}
+function mAddSerial(){
+  const inp=document.getElementById('mb-serial-inp');
+  const v=inp.value.trim(); if(!v) return;
+  if(REGISTRY.find(r=>r.serial===v)){toast('⚠ Serial นี้มีอยู่แล้ว');return;}
+  if(mBuySerials.includes(v)){toast('⚠ Serial ซ้ำ');return;}
+  mBuySerials.push(v); inp.value='';
+  document.getElementById('mb-serial-tags').innerHTML=mBuySerials.map((s,i)=>`
+    <span class="chip">${s} <span onclick="mBuySerials.splice(${i},1);document.getElementById('mb-serial-tags').innerHTML='';mBuySerials.forEach((_,j)=>{ const c=document.createElement('span'); c.className='chip'; document.getElementById('mb-serial-tags').appendChild(c); });" style="cursor:pointer;color:var(--red);margin-left:4px;">✕</span></span>`).join('');
+  // Re-render tags properly
+  document.getElementById('mb-serial-tags').innerHTML=mBuySerials.map((s,i)=>`<span class="chip">${s} <span onclick="mRemoveSerial(${i})" style="cursor:pointer;color:var(--red);margin-left:4px;">✕</span></span>`).join('');
+}
+function mRemoveSerial(i){ mBuySerials.splice(i,1); document.getElementById('mb-serial-tags').innerHTML=mBuySerials.map((s,j)=>`<span class="chip">${s} <span onclick="mRemoveSerial(${j})" style="cursor:pointer;color:var(--red);margin-left:4px;">✕</span></span>`).join(''); }
+function mPreviewImg(inp, prevId){
+  const file=inp.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const prev=document.getElementById(prevId);
+    prev.src=e.target.result; prev.style.display='block';
+    if(prevId.includes('receipt')) mBuyImageData.receipt=e.target.result.split(',')[1];
+    else mBuyImageData.tool=e.target.result.split(',')[1];
+  };
+  reader.readAsDataURL(file);
+}
+function mSubmitBuy(){
+  const type=document.getElementById('mb-type').value;
+  const name=document.getElementById('mb-name').value.trim();
+  const brand=document.getElementById('mb-brand').value.trim();
+  const date=document.getElementById('mb-date').value;
+  const supplier=document.getElementById('mb-supplier').value.trim();
+  const price=parseFloat(document.getElementById('mb-price').value)||0;
+  const note=document.getElementById('mb-note').value;
+  if(!name){toast('⚠ กรุณากรอกชื่อ Tool');return;}
+  const txnId='TXN-'+uid();
+  let finalSerials=[];
+  if(mBuyMode==='auto'){
+    const qty=parseInt(document.getElementById('mb-autoQty').value)||1;
+    const tp=TYPE_PREFIX[type]||type.slice(0,3).toUpperCase();
+    const yr=new Date().getFullYear().toString().slice(-2);
+    const nameKey=name.slice(0,6).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    const brandKey=brand?(BRAND_ABBR[brand.toUpperCase()]||brand.slice(0,3).toUpperCase()):'GEN';
+    const prefix=`${tp}-${yr}-${nameKey}-${brandKey}`;
+    const existing=REGISTRY.filter(r=>r.serial&&r.serial.startsWith(`${tp}-${yr}-${nameKey}-`)).length;
+    finalSerials=Array.from({length:qty},(_,i)=>`${prefix}-${String(existing+i+1).padStart(2,'0')}`);
+  } else if(mBuyMode==='manual'){
+    if(mBuySerials.length===0){toast('⚠ กรุณาเพิ่ม Serial');return;}
+    finalSerials=[...mBuySerials];
+  }
+  if(mBuyMode!=='none'){
+    finalSerials.forEach(serial=>{
+      const regId='REG-'+uid();
+      REGISTRY.push({id:regId,serial,hasSerial:true,type,name,brand,price,unit:'PCS',status:'stock',holder:null,dept:null,buyDate:date,buyTxnId:txnId,history:[{event:'buy',date,person:'User',note:`Supplier: ${supplier}`,txnId}]});
+      TXNS.push({id:'TXN-'+uid(),event:'buy',date,toolId:regId,serial,hasSerial:true,type,name,brand,qty:1,supplier,price,note});
+    });
+  } else {
+    const qty=parseInt(document.getElementById('mb-qty').value)||1;
+    const unit=document.getElementById('mb-unit').value||'PCS';
+    for(let i=0;i<qty;i++){
+      const regId='REG-'+uid();
+      REGISTRY.push({id:regId,serial:null,hasSerial:false,type,name,brand,price,unit,status:'stock',holder:null,dept:null,buyDate:date,buyTxnId:txnId,history:[{event:'buy',date,person:'User',note:`Supplier: ${supplier} (${i+1}/${qty})`,txnId}]});
+    }
+    TXNS.push({id:txnId,event:'buy',date,toolId:null,serial:'N/A',hasSerial:false,type,name,brand,qty:parseInt(document.getElementById('mb-qty').value)||1,supplier,price,note,unit});
+  }
+  closeSheet('buy'); scheduleSave(); updateBadges(); renderBuyHist(); renderDash();
+  toast(`✅ บันทึก "${name}" ${mBuyMode!=='none'?finalSerials.length+' ชิ้น':'qty '+(document.getElementById('mb-qty')?.value||1)} แล้ว`);
+}
+
+// ═══════════════════════════════
+//  ISSUE
+// ═══════════════════════════════
+function mSubmitIssue(){
+  if(issMSel.size===0){toast('⚠ กรุณาเลือก Tool');return;}
+  const person=document.getElementById('mi-person').value.trim();
+  if(!person){toast('⚠ กรุณากรอกชื่อผู้เบิก');return;}
+  const date=document.getElementById('mi-date').value;
+  const dept=document.getElementById('mi-dept').value;
+  const action=document.getElementById('mi-action').value;
+  const oldSerial=action==='เปลี่ยน'?document.getElementById('mi-old-serial').value.trim():'';
+
+  // Auto-return old serial if เปลี่ยน
+  if(action==='เปลี่ยน'&&oldSerial){
+    const oldReg=REGISTRY.find(r=>r.serial===oldSerial&&r.status==='inuse');
+    if(oldReg){
+      const txnId='TXN-'+uid();
+      oldReg.status='used_inspect'; oldReg.holder=null;
+      oldReg.history.push({event:'return',date,person,note:`คืนอัตโนมัติ — เปลี่ยนเป็นรายการใหม่`,txnId});
+      TXNS.push({id:txnId,event:'return',date,toolId:oldReg.id,serial:oldReg.serial,hasSerial:oldReg.hasSerial,type:oldReg.type,name:oldReg.name,qty:1,dept,person,retStatus:'used_inspect',note:'Auto-return'});
+    }
+  }
+  [...issMSel].forEach(id=>{
+    const r=REGISTRY.find(x=>x.id===id);
+    if(!r||r.status!=='stock') return;
+    const txnId='TXN-'+uid();
+    r.status='inuse'; r.holder=person; r.dept=dept;
+    r.history.push({event:'issue',date,person,note:`${dept}${action==='เปลี่ยน'?' (เปลี่ยน)':''}`,txnId});
+    TXNS.push({id:txnId,event:'issue',date,toolId:r.id,serial:r.serial||'N/A',hasSerial:r.hasSerial,type:r.type,name:r.name,qty:1,dept,person,note:document.getElementById('mi-note').value,oldSerial:oldSerial||null});
+  });
+  const cnt=issMSel.size;
+  issMSel.clear();
+  closeSheet('issue'); scheduleSave(); updateBadges(); renderMIssueList();
+  if(currentPage==='dashboard') renderDash();
+  toast(`✅ เบิก ${cnt} รายการ แล้ว`);
+}
+
+// ═══════════════════════════════
+//  RETURN
+// ═══════════════════════════════
+function mSubmitReturn(){
+  if(!retTargetId){toast('⚠ ไม่ได้เลือก Tool');return;}
+  const person=document.getElementById('mr-person').value.trim();
+  if(!person){toast('⚠ กรุณากรอกชื่อ');return;}
+  const date=document.getElementById('mr-date').value;
+  const status=document.getElementById('mr-status').value;
+  const note=document.getElementById('mr-note').value;
+  const r=REGISTRY.find(x=>x.id===retTargetId);
+  if(!r){toast('⚠ ไม่พบ Tool');return;}
+  const txnId='TXN-'+uid();
+  r.status=status; r.holder=null;
+  r.history.push({event:'return',date,person,note,txnId});
+  TXNS.push({id:txnId,event:'return',date,toolId:r.id,serial:r.serial,hasSerial:r.hasSerial,type:r.type,name:r.name,qty:1,dept:r.dept,person,retStatus:status,note});
+  retTargetId=null;
+  closeSheet('return'); scheduleSave(); updateBadges(); renderReturnPage();
+  if(currentPage==='registry') renderMRegistry();
+  if(currentPage==='dashboard') renderDash();
+  toast(`✅ คืน "${r.name}" แล้ว · ${status==='used_inspect'?'🔍 รอ Inspect':status==='used_ok'?'✓ Used OK':'❌ Scrap'}`);
+}
+
+// ═══════════════════════════════
+//  INSPECT
+// ═══════════════════════════════
+function mSubmitInspect(){
+  if(!inspTargetId) return;
+  const r=REGISTRY.find(x=>x.id===inspTargetId);
+  const result=document.getElementById('minsp-result').value;
+  const note=document.getElementById('minsp-note').value;
+  const date=today();
+  const txnId='TXN-'+uid();
+  r.status=result;
+  r.history.push({event:'inspect',date,person:'Inspector',note:`${result==='used_ok'?'ผ่าน':'ไม่ผ่าน'}: ${note}`,txnId});
+  TXNS.push({id:txnId,event:'inspect',date,toolId:r.id,serial:r.serial,hasSerial:r.hasSerial,type:r.type,name:r.name,qty:1,result,note,person:'Inspector'});
+  inspTargetId=null;
+  closeSheet('inspect'); scheduleSave(); updateBadges(); renderReturnPage();
+  if(currentPage==='registry') renderMRegistry();
+  toast(`✅ Inspect "${r.name}" · ${result==='used_ok'?'✓ ผ่าน':'❌ Scrap'}`);
+}
+
+// ═══════════════════════════════
+//  REISSUE
+// ═══════════════════════════════
+function mSubmitReissue(){
+  if(!riTargetId) return;
+  const r=REGISTRY.find(x=>x.id===riTargetId);
+  if(!r||r.status!=='used_ok'){toast('⚠ Tool นี้ไม่พร้อมเบิก');return;}
+  const person=document.getElementById('mri-person').value.trim();
+  if(!person){toast('⚠ กรุณากรอกชื่อ');return;}
+  const date=document.getElementById('mri-date').value;
+  const dept=document.getElementById('mri-dept').value;
+  const txnId='TXN-'+uid();
+  r.status='inuse'; r.holder=person; r.dept=dept;
+  r.history.push({event:'reissue',date,person,note:'Used tool re-issued',txnId});
+  TXNS.push({id:txnId,event:'reissue',date,toolId:r.id,serial:r.serial,hasSerial:r.hasSerial,type:r.type,name:r.name,qty:1,dept,person,saving:r.price||0,note:''});
+  riTargetId=null;
+  closeSheet('reissue'); scheduleSave(); updateBadges();
+  if(currentPage==='registry') renderMRegistry();
+  if(currentPage==='dashboard') renderDash();
+  toast(`✅ เบิก Used "${r.name}" แล้ว`);
+}
+
+// ═══════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════
+function mSaveGasUrl(){
+  const url=document.getElementById('m-gas-url').value.trim();
+  if(!url) return;
+  GAS_URL=url; localStorage.setItem('ctstock_gas_url',url);
+  toast('💾 บันทึก URL แล้ว');
+  closeSheet('settings'); syncNow();
+}
+
+// ═══════════════════════════════
+//  INIT
+// ═══════════════════════════════
+async function init(){
+  // Init date fields
+  document.getElementById('mb-date').value=today();
+  document.getElementById('mi-date').value=today();
+  document.getElementById('mr-date').value=today();
+  document.getElementById('mri-date').value=today();
+  document.getElementById('m-gas-url').value=GAS_URL;
+
+  // Load local first (fast)
+  const savedAt=loadLocal();
+  if(savedAt){ renderDash(); updateBadges(); }
+  else { document.getElementById('kpiGrid').innerHTML='<div style="grid-column:1/-1;text-align:center;color:var(--muted);padding:30px 0;">🔄 กำลังโหลดข้อมูล...</div>'; }
+
+  // Then sync from cloud
+  const ok=await loadFromGAS();
+  if(ok){ renderDash(); updateBadges(); }
+}
+
+init();
+</script>
+</body>
+</html>
