@@ -283,6 +283,32 @@ tr.selected-row{background:rgba(239,68,68,.07);}
       </div>
 
       <div class="card">
+        <div class="card-hd">
+          <div class="card-title">📊 สรุปการเบิกรายการ Tool</div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <input list="deptChartToolList" id="deptChartTool" onchange="renderDeptChart()" oninput="renderDeptChart()"
+              placeholder="🔍 ค้นหา Tool..."
+              style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--fg);max-width:220px;">
+            <datalist id="deptChartToolList"></datalist>
+            <select id="deptChartMonth" onchange="renderDeptChart()" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--fg);">
+              <option value="">— ทุกเดือน —</option>
+            </select>
+            <select id="deptChartMode" onchange="renderDeptChart()" style="font-size:11px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface2);color:var(--fg);">
+              <option value="dept">แยกตามแผนก</option>
+              <option value="month">แยกตามเดือน</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-body" style="display:flex;gap:16px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:260px;min-height:220px;position:relative;">
+            <canvas id="cDept"></canvas>
+          </div>
+          <div id="deptLegend" style="min-width:180px;display:flex;flex-direction:column;gap:5px;justify-content:center;"></div>
+        </div>
+        <div id="deptTable" style="margin-top:8px;overflow-x:auto;"></div>
+      </div>
+
+      <div class="card">
         <div class="card-hd"><div class="card-title">🕐 Transaction ล่าสุด</div><span class="tag tb" id="recentCount">0 รายการ</span></div>
         <div class="tw"><table>
           <thead><tr><th>วันที่</th><th>Event</th><th>Tool</th><th>Serial</th><th>แผนก/Supplier</th><th>ผู้ดำเนินการ</th></tr></thead>
@@ -626,6 +652,28 @@ tr.selected-row{background:rgba(239,68,68,.07);}
       <div class="fg"><label class="fl">ราคาต่อชิ้น (฿)</label><input class="fi" type="number" id="b-price" value="0" min="0"></div>
       <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" type="text" id="b-note" placeholder="ไม่บังคับ"></div>
     </div>
+    <!-- รูปภาพ -->
+    <div class="fr" style="margin-top:6px;gap:10px;">
+      <div class="fg">
+        <label class="fl">📄 รูปใบเบิก</label>
+        <div id="b-receipt-area" onclick="document.getElementById('b-receipt-input').click()"
+          style="border:2px dashed var(--border);border-radius:8px;padding:10px;text-align:center;cursor:pointer;min-height:70px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;background:var(--surface2);">
+          <div id="b-receipt-preview" style="display:none;"><img id="b-receipt-img" style="max-height:80px;max-width:100%;border-radius:6px;"></div>
+          <div id="b-receipt-placeholder" style="color:var(--muted);font-size:12px;">📷 คลิกเพื่อเลือกรูป</div>
+        </div>
+        <input type="file" id="b-receipt-input" accept="image/*" style="display:none" onchange="previewImage('b-receipt')">
+      </div>
+      <div class="fg">
+        <label class="fl">🔧 รูป Tool</label>
+        <div id="b-tool-area" onclick="document.getElementById('b-tool-input').click()"
+          style="border:2px dashed var(--border);border-radius:8px;padding:10px;text-align:center;cursor:pointer;min-height:70px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;background:var(--surface2);">
+          <div id="b-tool-preview" style="display:none;"><img id="b-tool-img" style="max-height:80px;max-width:100%;border-radius:6px;"></div>
+          <div id="b-tool-placeholder" style="color:var(--muted);font-size:12px;">📷 คลิกเพื่อเลือกรูป</div>
+        </div>
+        <input type="file" id="b-tool-input" accept="image/*" style="display:none" onchange="previewImage('b-tool')">
+      </div>
+    </div>
+    <div id="b-upload-status" style="font-size:11px;color:var(--muted);text-align:center;min-height:16px;"></div>
     <div class="mf">
       <button class="btn btn-outline" onclick="closeModal('buy')">ยกเลิก</button>
       <button class="btn btn-primary" onclick="submitBuy()">✓ บันทึกนำเข้า</button>
@@ -660,8 +708,16 @@ tr.selected-row{background:rgba(239,68,68,.07);}
     <div class="fr">
       <div class="fg"><label class="fl">ผู้เบิก</label><input class="fi" type="text" id="iss-person" placeholder="ชื่อผู้เบิก"></div>
       <div class="fg"><label class="fl">ประเภทการเบิก</label>
-        <select class="fi" id="iss-action"><option value="เปลี่ยน">เปลี่ยน Tool</option><option value="เบิกเพิ่ม">เบิกเพิ่ม</option></select>
+        <select class="fi" id="iss-action" onchange="toggleIssueType()">
+          <option value="เบิกเพิ่ม">เบิกเพิ่ม</option>
+          <option value="เปลี่ยน">เปลี่ยน Tool</option>
+        </select>
       </div>
+    </div>
+    <!-- ช่อง Serial เก่า (แสดงเมื่อเลือก "เปลี่ยน") -->
+    <div id="iss-replace-row" style="display:none;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.25);border-radius:8px;padding:10px 12px;margin-top:4px;">
+      <div style="font-size:11px;font-weight:600;color:var(--yellow);margin-bottom:6px;">🔄 ข้อมูล Tool เก่าที่นำมาเปลี่ยน</div>
+      <div id="iss-replace-items" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>
     <div id="iss-qtyRow" style="display:none;" class="fg"><label class="fl">จำนวน (กรณีไม่มี Serial)</label><input class="fi" type="number" id="iss-qty" value="1" min="1"></div>
     <div class="mf">
@@ -715,7 +771,7 @@ tr.selected-row{background:rgba(239,68,68,.07);}
     <div id="ret-modeManual" style="display:none;">
       <div class="fr">
         <div class="fg"><label class="fl">ประเภท Tool</label>
-          <select class="fi" id="ret-type">
+          <select class="fi" id="ret-type" onchange="updateRetSerialList()">
             <option>Insert</option><option>Endmill</option><option>Tap</option><option>Drill</option>
             <option>Ball</option><option>Reamer</option><option>Chamfer</option><option>Spot Drill</option>
             <option>THREAD MILL</option><option>screw</option><option>center drill</option>
@@ -724,7 +780,10 @@ tr.selected-row{background:rgba(239,68,68,.07);}
         <div class="fg"><label class="fl">ชื่อ Tool</label><input class="fi" type="text" id="ret-name" placeholder="ชื่อ Tool"></div>
       </div>
       <div class="fr">
-        <div class="fg"><label class="fl">Serial (ถ้ามี)</label><input class="fi" type="text" id="ret-serial" placeholder="Serial หรือ N/A"></div>
+        <div class="fg"><label class="fl">Serial (ถ้ามี)</label>
+          <input class="fi" list="ret-serial-list" type="text" id="ret-serial" placeholder="Serial หรือ N/A" oninput="updateRetSerialList()">
+          <datalist id="ret-serial-list"></datalist>
+        </div>
         <div class="fg"><label class="fl">จำนวน</label><input class="fi" type="number" id="ret-qty" value="1" min="1"></div>
       </div>
       <div class="fg"><label class="fl">แผนก</label>
@@ -740,12 +799,13 @@ tr.selected-row{background:rgba(239,68,68,.07);}
     </div>
     <div class="fr">
       <div class="fg">
-        <label class="fl">⭐ สภาพ / ผล Inspect เบื้องต้น</label>
+        <label class="fl">⭐ สถานะหลังคืน</label>
         <select class="fi" id="ret-status">
-          <option value="used_inspect">🔍 รอ Inspect — ต้องตรวจก่อน (ค่าเริ่มต้น)</option>
+          <option value="used_inspect" selected>🔍 รอ Inspect (ค่าเริ่มต้น)</option>
           <option value="used_ok">✓ ใช้ได้อีก — ผ่านแล้ว</option>
           <option value="scrapped">❌ Scrap — ทิ้ง</option>
         </select>
+        <div style="font-size:10px;color:var(--muted);margin-top:3px;">💡 ค่าเริ่มต้นเป็น "รอ Inspect" — สามารถเปลี่ยนได้ที่หน้า Registry</div>
       </div>
       <div class="fg"><label class="fl">หมายเหตุ</label><input class="fi" type="text" id="ret-note" placeholder="สึก, คมหัก..."></div>
     </div>
@@ -2274,6 +2334,7 @@ function renderDashboard(){
   updateBadges();
   drawStatusChart(stock,inuse,inspect,ok,scrap);
   drawTypeChart();
+  renderDeptChart();
   renderRecent();
 }
 let cStatusInst=null,cTypeInst=null;
@@ -2308,6 +2369,121 @@ function drawTypeChart(){
     <span style="font-family:'JetBrains Mono',monospace;font-size:11px;">${n}</span>
   </div>`).join('');
 }
+let cDeptInst = null;
+function initDeptFilters(){
+  const issues = TXNS.filter(t=>t.event==='issue');
+
+  // Tool datalist
+  const toolDL = document.getElementById('deptChartToolList');
+  if(toolDL){
+    const tools = [...new Set(issues.map(t=>t.name||''))].filter(Boolean).sort();
+    toolDL.innerHTML = tools.map(n=>`<option value="${n}">`).join('');
+  }
+
+  // Month dropdown
+  const monthSel = document.getElementById('deptChartMonth');
+  if(monthSel){
+    const curMonth = monthSel.value;
+    const months = [...new Set(issues.map(t=>t.date?t.date.slice(0,7):''))].filter(Boolean).sort().reverse();
+    monthSel.innerHTML = `<option value="">— ทุกเดือน —</option>` +
+      months.map(m=>`<option value="${m}" ${m===curMonth?'selected':''}>${m}</option>`).join('');
+  }
+}
+
+function renderDeptChart(){
+  initDeptFilters();
+  const selTool  = document.getElementById('deptChartTool')?.value  || '';
+  const selMonth = document.getElementById('deptChartMonth')?.value || '';
+  const mode     = document.getElementById('deptChartMode')?.value  || 'dept';
+  const colors   = ['#00d4ff','#f59e0b','#a78bfa','#22c55e','#ef4444','#fb923c','#38bdf8','#f472b6','#84cc16','#e879f9'];
+
+  // กรองเฉพาะ issue
+  let issues = TXNS.filter(t => t.event==='issue');
+  if(selTool)  issues = issues.filter(t=>(t.name||'').toLowerCase().includes(selTool.toLowerCase()));
+  if(selMonth) issues = issues.filter(t=>t.date?.startsWith(selMonth));
+
+  // กลุ่มตาม mode
+  const groups = {};
+  issues.forEach(t=>{
+    const key = mode==='dept' ? (t.dept||'ไม่ระบุ') : (t.date?t.date.slice(0,7):'ไม่ระบุ');
+    if(!groups[key]) groups[key]={ count:0, tools:{}, persons:[] };
+    const qty = t.qty||1;
+    groups[key].count += qty;
+    const tname = t.name||'ไม่ระบุ';
+    groups[key].tools[tname] = (groups[key].tools[tname]||0) + qty;
+    if(t.person && !groups[key].persons.includes(t.person)) groups[key].persons.push(t.person);
+  });
+
+  const sorted = Object.entries(groups).sort((a,b)=> mode==='month' ? a[0].localeCompare(b[0]) : b[1].count-a[1].count);
+  const labels = sorted.map(x=>x[0]);
+  const counts = sorted.map(x=>x[1].count);
+
+  // Chart
+  const ctx = document.getElementById('cDept');
+  if(cDeptInst){ cDeptInst.destroy(); cDeptInst=null; }
+  if(!ctx || sorted.length===0){
+    document.getElementById('deptLegend').innerHTML='<div style="color:var(--muted);font-size:12px;">ไม่มีข้อมูลการเบิก</div>';
+    document.getElementById('deptTable').innerHTML='';
+    return;
+  }
+  cDeptInst = new Chart(ctx, {
+    type: 'bar',
+    data:{
+      labels,
+      datasets:[{
+        data: counts,
+        backgroundColor: labels.map((_,i)=>colors[i%colors.length]),
+        borderRadius:6, borderSkipped:false
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{callbacks:{label:c=>`${c.parsed.y} ชิ้น`}} },
+      scales:{
+        x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#1a1e2a'}},
+        y:{ticks:{color:'#64748b',font:{size:10},stepSize:1},grid:{color:'#1a1e2a'},beginAtZero:true}
+      }
+    }
+  });
+
+  // Legend
+  document.getElementById('deptLegend').innerHTML = sorted.map(([k,v],i)=>`
+    <div style="display:flex;align-items:center;gap:6px;font-size:11px;">
+      <div style="width:10px;height:10px;border-radius:3px;background:${colors[i%colors.length]};flex-shrink:0;"></div>
+      <span style="flex:1;color:var(--fg);font-weight:600;">${k}</span>
+      <span style="font-family:'JetBrains Mono',monospace;color:var(--accent);">${v.count} ชิ้น</span>
+    </div>`).join('');
+
+  // Table รายละเอียด
+  const colLabel = mode==='dept' ? 'แผนก' : 'เดือน';
+  document.getElementById('deptTable').innerHTML = `
+    <table style="width:100%;font-size:11px;border-collapse:collapse;">
+      <thead><tr style="color:var(--muted);border-bottom:1px solid var(--border);">
+        <th style="padding:6px 10px;text-align:left;">${colLabel}</th>
+        <th style="padding:6px 10px;text-align:left;">Tool ที่เบิก</th>
+        <th style="padding:6px 10px;text-align:left;">ผู้เบิก</th>
+        <th style="padding:6px 10px;text-align:right;">จำนวน</th>
+      </tr></thead>
+      <tbody>${sorted.map(([k,v],i)=>{
+        const topTools = Object.entries(v.tools).sort((a,b)=>b[1]-a[1]).slice(0,3)
+          .map(([n,c])=>`${n.slice(0,22)} <span style="color:var(--accent);">×${c}</span>`).join(', ');
+        const persons = v.persons.slice(0,3).join(', ');
+        return `<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:7px 10px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div style="width:8px;height:8px;border-radius:2px;background:${colors[i%colors.length]};flex-shrink:0;"></div>
+              <span style="font-weight:600;">${k}</span>
+            </div>
+          </td>
+          <td style="padding:7px 10px;color:var(--muted);">${topTools||'-'}</td>
+          <td style="padding:7px 10px;color:var(--muted);">${persons||'-'}</td>
+          <td style="padding:7px 10px;text-align:right;font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:700;">${v.count}</td>
+        </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+}
+
 function renderRecent(){
   const recent=[...TXNS].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
   document.getElementById('recentCount').textContent=TXNS.length+' รายการ';
@@ -2469,6 +2645,7 @@ function renderRegistry(){
       ${r.status==='inuse'?`<button class="ab ab-o" onclick="quickReturn('${r.id}')">↩ คืน</button>`:''}
       ${r.status==='used_inspect'?`<button class="ab ab-b" onclick="openInspect('${r.id}')">🔍 Inspect</button>`:''}
       ${r.status==='used_ok'?`<button class="ab ab-g" onclick="quickReissue('${r.id}')">♻ เบิกซ้ำ</button>`:''}
+      <button class="ab" style="background:${r.imageUrl?'rgba(99,102,241,.15)':'var(--surface2)'};color:${r.imageUrl?'var(--accent)':'var(--muted)'};" onclick="openToolImageModal('${r.id}')" title="${r.imageUrl?'ดู/เปลี่ยนรูป Tool':'เพิ่มรูป Tool'}">🖼</button>
       <button class="ab" style="background:var(--surface2);color:var(--muted);" onclick="openHistory('${r.id}')">📋</button>
       <button class="ab" style="background:rgba(239,68,68,.12);color:var(--red);margin-left:2px;" onclick="deleteRegistry('${r.id}')" title="ลบ">🗑</button>
     </td>
@@ -2561,9 +2738,14 @@ function renderReturn(){
     <td class="mono">${t.qty}</td>
     <td>${t.dept?`<span class="tag ${t.dept==='Repeat'?'tg':'ty'}">${t.dept}</span>`:'-'}</td>
     <td>${t.person}</td>
-    <td>${statusPill(t.retStatus)}</td>
+    <td>${statusPill(t.retStatus||t.status||'used_inspect')}</td>
     <td style="color:var(--muted);font-size:11px;">${t.note||'-'}</td>
-    <td><button class="ab" style="background:rgba(239,68,68,.12);color:var(--red);" onclick="deleteTxn('${t.id}')" title="ลบ">🗑</button></td>
+    <td style="display:flex;gap:4px;">
+      ${(t.retStatus||t.status)==='used_inspect'?`
+        <button class="ab ab-b" onclick="quickInspectFromReturn('${t.id}')" title="ตรวจสอบ">🔍 Inspect</button>
+      `:''}
+      <button class="ab" style="background:rgba(239,68,68,.12);color:var(--red);" onclick="deleteTxn('${t.id}')" title="ลบ">🗑</button>
+    </td>
   </tr>`).join('');
 }
 
@@ -2953,6 +3135,9 @@ function renderIssueBasket(){
       <span onclick="toggleIssueItem('${id}',document.getElementById('isrow-${id}'))" style="cursor:pointer;font-weight:700;margin-left:2px;color:var(--muted);">×</span>
     </div>`;
   }).join('');
+  // Re-render replace serial fields if in replace mode
+  const action = document.getElementById('iss-action')?.value;
+  if(action === 'เปลี่ยน') renderReplaceSerialFields();
 }
 
 function issClearAll(){
@@ -3370,6 +3555,145 @@ document.addEventListener('click', e=>{
   });
 });
 
+// ===== IMAGE UPLOAD FUNCTIONS =====
+let buyImageData = { receipt: null, tool: null }; // base64 data
+
+function previewImage(prefix) {
+  const input = document.getElementById(prefix + '-input');
+  const file = input.files[0];
+  if (!file) return;
+  // Resize before preview/upload
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const b64 = canvas.toDataURL('image/jpeg', 0.75);
+      // Show preview
+      document.getElementById(prefix + '-img').src = b64;
+      document.getElementById(prefix + '-preview').style.display = 'block';
+      document.getElementById(prefix + '-placeholder').style.display = 'none';
+      // Store
+      if (prefix === 'b-receipt') buyImageData.receipt = b64;
+      else if (prefix === 'b-tool') buyImageData.tool = b64;
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadImageToGAS(b64, filename) {
+  if (!GAS_URL || !b64) return null;
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'uploadImage', filename, data: b64 })
+    });
+    const json = await res.json();
+    return json.url || null;
+  } catch(e) { return null; }
+}
+
+function resetBuyImages() {
+  buyImageData = { receipt: null, tool: null };
+  ['b-receipt','b-tool'].forEach(p => {
+    const el = document.getElementById(p+'-input');
+    if(el) el.value = '';
+    const prev = document.getElementById(p+'-preview');
+    if(prev) prev.style.display = 'none';
+    const ph = document.getElementById(p+'-placeholder');
+    if(ph) ph.style.display = 'block';
+  });
+  const st = document.getElementById('b-upload-status');
+  if(st) st.textContent = '';
+}
+
+// Tool image modal
+function openToolImageModal(regId) {
+  const tool = REGISTRY.find(r => r.id === regId);
+  if (!tool) return;
+  const existing = tool.imageUrl || null;
+  const html = `
+    <div class="mo" id="mo-toolimg" style="display:flex;" onclick="if(event.target===this)closeToolImageModal()">
+      <div class="modal" style="max-width:420px;">
+        <div class="mt">🖼 รูป Tool — ${tool.name}</div>
+        <div style="text-align:center;margin:12px 0;">
+          ${existing ? `<img src="${existing}" style="max-width:100%;max-height:220px;border-radius:8px;margin-bottom:8px;"><br>` : ''}
+          <div id="toolimg-preview-wrap" style="${existing?'':''}">
+            <img id="toolimg-preview-img" style="max-width:100%;max-height:220px;border-radius:8px;display:none;margin-bottom:8px;">
+          </div>
+          <div id="toolimg-upload-area" onclick="document.getElementById('toolimg-input').click()"
+            style="border:2px dashed var(--border);border-radius:8px;padding:16px;cursor:pointer;color:var(--muted);font-size:13px;">
+            📷 ${existing ? 'เปลี่ยนรูปใหม่' : 'คลิกเพื่อเลือกรูป'}
+          </div>
+          <input type="file" id="toolimg-input" accept="image/*" style="display:none" onchange="previewToolImage()">
+        </div>
+        <div id="toolimg-status" style="font-size:11px;color:var(--muted);text-align:center;min-height:16px;"></div>
+        <div class="mf">
+          <button class="btn btn-outline" onclick="closeToolImageModal()">ยกเลิก</button>
+          <button class="btn btn-primary" onclick="saveToolImage('${regId}')">💾 บันทึกรูป</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+function closeToolImageModal() {
+  const el = document.getElementById('mo-toolimg');
+  if(el) el.remove();
+  window._toolImgB64 = null;
+}
+function previewToolImage() {
+  const file = document.getElementById('toolimg-input').files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if(w>MAX||h>MAX){ if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;} }
+      canvas.width=w; canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      const b64 = canvas.toDataURL('image/jpeg',0.75);
+      window._toolImgB64 = b64;
+      const imgEl = document.getElementById('toolimg-preview-img');
+      imgEl.src = b64; imgEl.style.display = 'block';
+      document.getElementById('toolimg-upload-area').textContent = '✅ รูปพร้อมบันทึก';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+async function saveToolImage(regId) {
+  const b64 = window._toolImgB64;
+  if(!b64){ alert('กรุณาเลือกรูปก่อน'); return; }
+  const st = document.getElementById('toolimg-status');
+  st.textContent = '⏳ กำลังอัพโหลด...';
+  const url = await uploadImageToGAS(b64, 'tool_'+regId+'_'+Date.now()+'.jpg');
+  if(url) {
+    const tool = REGISTRY.find(r=>r.id===regId);
+    if(tool) { tool.imageUrl = url; scheduleSave(); }
+    st.textContent = '✅ บันทึกสำเร็จ';
+    setTimeout(()=>{ closeToolImageModal(); renderRegistry(); }, 800);
+  } else {
+    // fallback: store base64 directly
+    const tool = REGISTRY.find(r=>r.id===regId);
+    if(tool) { tool.imageUrl = b64; scheduleSave(); }
+    st.textContent = '✅ บันทึกสำเร็จ (local)';
+    setTimeout(()=>{ closeToolImageModal(); renderRegistry(); }, 800);
+  }
+}
+// ===== END IMAGE FUNCTIONS =====
+
 function submitBuy(){
   const type=document.getElementById('b-type').value;
   const name=document.getElementById('b-name').value.trim();
@@ -3414,9 +3738,83 @@ function submitBuy(){
     TXNS.push({id:txnId,event:'buy',date,toolId:null,serial:'N/A',hasSerial:false,
       type,name,brand,qty,supplier,price,note,unit});
   }
+  // Upload images if any
+  const hasImages = buyImageData.receipt || buyImageData.tool;
+  if(hasImages && GAS_URL){
+    const st = document.getElementById('b-upload-status');
+    if(st) st.textContent = '⏳ กำลังอัพโหลดรูป...';
+    const uploadPromises = [];
+    if(buyImageData.receipt) uploadPromises.push(uploadImageToGAS(buyImageData.receipt,'receipt_'+txnId+'.jpg').then(url=>({type:'receipt',url})));
+    if(buyImageData.tool) uploadPromises.push(uploadImageToGAS(buyImageData.tool,'tool_'+txnId+'.jpg').then(url=>({type:'tool',url})));
+    Promise.all(uploadPromises).then(results=>{
+      results.forEach(r=>{
+        if(r.url){
+          // Attach to txn
+          const txn = TXNS.find(t=>t.id===txnId);
+          if(txn && r.type==='receipt') txn.receiptUrl = r.url;
+          // Attach tool image to all new registry entries
+          if(r.type==='tool'){
+            REGISTRY.filter(t=>t.buyTxnId===txnId).forEach(t=>{ if(!t.imageUrl) t.imageUrl = r.url||buyImageData.tool; });
+          }
+          scheduleSave();
+        }
+      });
+    }).catch(()=>{});
+  } else if(buyImageData.tool) {
+    // Fallback: store base64 tool image locally
+    REGISTRY.filter(t=>t.buyTxnId===txnId).forEach(t=>{ t.imageUrl = buyImageData.tool; });
+  }
+  resetBuyImages();
   closeModal('buy');
   renderDashboard();renderBuy();renderRegistry();scheduleSave();
-  alert(`✅ บันทึกนำเข้าสำเร็จ\n"${name}"\n${!noSer?finalSerials.length+' Serial ('+finalSerials[0]+(finalSerials.length>1?' ~ '+finalSerials[finalSerials.length-1]:'')+')':'qty '+document.getElementById('b-qty').value}`);
+  alert(`✅ บันทึกนำเข้าสำเร็จ\n"${name}"\n${!noSer?finalSerials.length+' Serial ('+finalSerials[0]+(finalSerials.length>1?' ~ '+finalSerials[finalSerials.length-1]:'')+')':'qty '+document.getElementById('b-qty').value}${hasImages?'\n📷 กำลังอัพโหลดรูปในพื้นหลัง...':''}`);
+}
+
+function updateRetSerialList(){
+  const type = document.getElementById('ret-type')?.value || '';
+  const dl = document.getElementById('ret-serial-list');
+  if(!dl) return;
+  const inuse = REGISTRY.filter(r=>r.status==='inuse' && r.hasSerial && (!type||r.type===type));
+  dl.innerHTML = inuse.map(r=>`<option value="${r.serial}">${r.serial} — ${r.name}${r.holder?' ('+r.holder+')':''}</option>`).join('');
+}
+
+function toggleIssueType(){
+  const action = document.getElementById('iss-action').value;
+  const row = document.getElementById('iss-replace-row');
+  if(action === 'เปลี่ยน'){
+    row.style.display = 'block';
+    renderReplaceSerialFields();
+  } else {
+    row.style.display = 'none';
+  }
+}
+
+function renderReplaceSerialFields(){
+  const container = document.getElementById('iss-replace-items');
+  if(!container) return;
+  const items = [...issSelected].map(id => REGISTRY.find(r=>r.id===id)).filter(Boolean);
+  container.innerHTML = items.map(r => {
+    if(!r.hasSerial){
+      return `<div style="font-size:11px;color:var(--muted);padding:4px 0;">
+        <span style="color:var(--accent);">${r.name}</span> — ไม่มี Serial (ไม่ต้องกรอก)
+      </div>`;
+    }
+    // หา tool inuse ที่ type และ name เดียวกัน
+    const inuseTools = REGISTRY.filter(x=>x.status==='inuse' && x.hasSerial && x.type===r.type && x.name===r.name);
+    const options = inuseTools.map(x=>`<option value="${x.serial}">${x.serial}${x.holder?' ('+x.holder+')':''}</option>`).join('');
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <div style="font-size:11px;min-width:100px;color:var(--fg);flex-shrink:0;">${r.name.slice(0,20)}</div>
+      <div style="flex:1;position:relative;">
+        <input class="fi" list="old-serial-list-${r.id}" id="old-serial-${r.id}"
+          placeholder="${inuseTools.length>0?'เลือกหรือพิมพ์ Serial เก่า':'พิมพ์ Serial เก่า (ถ้ามี)'}"
+          style="font-family:'JetBrains Mono',monospace;font-size:11px;padding:5px 8px;width:100%;">
+        <datalist id="old-serial-list-${r.id}">
+          ${options}
+        </datalist>
+        ${inuseTools.length>0?`<div style="font-size:9px;color:var(--muted);margin-top:2px;">พบ ${inuseTools.length} รายการที่กำลังใช้งาน</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function submitIssue(){
@@ -3430,15 +3828,39 @@ function submitIssue(){
   [...issSelected].forEach(id=>{
     const r=REGISTRY.find(x=>x.id===id);
     if(!r||r.status!=='stock') return;
-    // read qty from basket input for no-serial items
     const qtyEl=document.getElementById('issqty-'+id);
     const qty=r.hasSerial?1:(qtyEl?Math.max(1,parseInt(qtyEl.value)||1):(issQtyMap[id]||1));
     const txnId='TXN-'+uid();
+    // Get old serial if replace mode
+    let oldSerial = '';
+    if(action==='เปลี่ยน' && r.hasSerial){
+      const oldEl = document.getElementById('old-serial-'+id);
+      oldSerial = oldEl ? oldEl.value.trim() : '';
+    }
     r.status='inuse'; r.holder=person; r.dept=dept;
     if(!r.hasSerial && r.qty!=null) r.qty=Math.max(0,(r.qty||0)-qty);
-    r.history.push({event:'issue',date,person,note:action,txnId});
+    const noteText = action + (oldSerial ? ` (เปลี่ยนจาก: ${oldSerial})` : '');
+    r.history.push({event:'issue',date,person,note:noteText,txnId});
     TXNS.push({id:txnId,event:'issue',date,toolId:r.id,serial:r.serial,hasSerial:r.hasSerial,
-      type:r.type,name:r.name,brand:r.brand,qty,dept,person,action,note:''});
+      type:r.type,name:r.name,brand:r.brand,qty,dept,person,action,
+      oldSerial:oldSerial||null,note:noteText});
+
+    // ถ้าเปลี่ยน Tool → auto คืน Tool เก่าและตั้งสถานะ used_inspect
+    if(action==='เปลี่ยน' && oldSerial){
+      const oldTool = REGISTRY.find(x=>x.hasSerial && x.serial===oldSerial);
+      if(oldTool){
+        const retTxnId='TXN-'+uid();
+        oldTool.status='used_inspect';
+        oldTool.holder=null;
+        oldTool.history.push({event:'return',date,person,
+          note:`คืนเพื่อเปลี่ยน (เบิก: ${r.serial||r.name})`,txnId:retTxnId});
+        TXNS.push({id:retTxnId,event:'return',date,toolId:oldTool.id,
+          serial:oldTool.serial,hasSerial:true,type:oldTool.type,name:oldTool.name,
+          brand:oldTool.brand,qty:1,dept,person,
+          note:`คืนอัตโนมัติ — เปลี่ยนเป็น ${r.serial||r.name}`,
+          status:'used_inspect',retStatus:'used_inspect'});
+      }
+    }
     count++;
   });
   issSelected.clear(); issQtyMap={};
@@ -3543,6 +3965,16 @@ function quickReissue(regId){
 
 // Inspect
 let inspectTargetId=null;
+function quickInspectFromReturn(txnId){
+  const txn = TXNS.find(t=>t.id===txnId);
+  if(!txn) return;
+  // หา registry entry จาก toolId หรือ serial
+  const r = REGISTRY.find(x=>x.id===txn.toolId) || REGISTRY.find(x=>x.serial===txn.serial&&x.hasSerial);
+  if(!r){ alert('ไม่พบ Tool ใน Registry'); return; }
+  if(r.status!=='used_inspect'){ alert('Tool นี้ไม่ได้อยู่ในสถานะ "รอ Inspect"'); return; }
+  openInspect(r.id);
+}
+
 function openInspect(regId){
   inspectTargetId=regId;
   const r=REGISTRY.find(x=>x.id===regId);
