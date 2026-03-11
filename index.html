@@ -2,7 +2,11 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CT Stock">
 <title>CutTool MS v3</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -145,10 +149,101 @@ tr.selected-row{background:rgba(239,68,68,.07);}
 ::-webkit-scrollbar{width:4px;height:4px;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
 @media(max-width:1000px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.g2,.g3{grid-template-columns:1fr}}
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media(max-width:768px){
+  /* Hide sidebar, show bottom nav */
+  .sidebar { display:none !important; }
+  .main { margin-left:0 !important; padding-bottom:70px; }
+
+  /* Mobile topbar */
+  .topbar { padding:10px 12px !important; flex-wrap:wrap; gap:6px; }
+  .topbar-actions { gap:4px !important; flex-wrap:wrap; }
+  .topbar-actions .btn { padding:5px 8px !important; font-size:11px !important; }
+
+  /* Bottom nav */
+  #mobile-nav {
+    display:flex !important;
+    position:fixed; bottom:0; left:0; right:0; z-index:200;
+    background:var(--surface); border-top:1px solid var(--border);
+    padding-bottom:env(safe-area-inset-bottom, 8px);
+  }
+  .mnav-btn {
+    flex:1; display:flex; flex-direction:column; align-items:center;
+    padding:8px 4px 4px; gap:2px; border:none; background:none;
+    color:var(--muted); font-family:inherit; font-size:10px; cursor:pointer;
+    transition:color 0.2s; position:relative;
+  }
+  .mnav-btn .micon { font-size:20px; line-height:1.2; }
+  .mnav-btn.active { color:var(--accent); }
+  .mnav-btn .mbadge {
+    position:absolute; top:4px; right:calc(50% - 16px);
+    background:var(--red); color:#fff; font-size:9px; font-weight:700;
+    min-width:15px; height:15px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center; padding:0 3px;
+  }
+
+  /* Page padding */
+  .ph { padding:12px !important; }
+  .sr { flex-wrap:wrap; gap:8px !important; }
+  .sc { min-width:80px; }
+
+  /* Tables — horizontal scroll */
+  .tw { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  table { min-width:600px; }
+  .tw table { font-size:11px; }
+
+  /* Modal */
+  .modal { margin:8px !important; max-height:92dvh !important; overflow-y:auto; }
+  .mo { align-items:flex-end !important; padding:0 !important; }
+  .modal { border-radius:16px 16px 0 0 !important; max-width:100% !important; width:100% !important; }
+
+  /* KPI grid */
+  .kpi-grid { grid-template-columns:1fr 1fr !important; }
+  .g2,.g3 { grid-template-columns:1fr !important; }
+
+  /* Action buttons in table */
+  .ab { padding:4px 6px !important; font-size:10px !important; }
+
+  /* Hide less important columns on mobile */
+  .hide-mobile { display:none !important; }
+
+  /* Form rows stack on mobile */
+  .fr { flex-direction:column !important; }
+  .fg { width:100% !important; }
+
+  /* Issue stock list */
+  #issueStockList { max-height:180px !important; }
+
+  /* Charts */
+  .cw { height:180px !important; }
+  .cws { height:150px !important; }
+}
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
+
+<!-- MOBILE BOTTOM NAV (hidden on desktop) -->
+<div id="mobile-nav" style="display:none;">
+  <button class="mnav-btn active" onclick="nav(document.querySelector('.nav-item.active')||this,'dashboard','📊 Dashboard',''); mnavActive(this)">
+    <span class="micon">📊</span>Dashboard
+  </button>
+  <button class="mnav-btn" onclick="nav(null,'registry','🗂 Registry',''); mnavActive(this)">
+    <span class="micon">🗂</span>Registry
+    <span class="mbadge" id="mbdgReg" style="display:none"></span>
+  </button>
+  <button class="mnav-btn" onclick="nav(null,'buy','🛒 นำเข้า',''); mnavActive(this)">
+    <span class="micon">🛒</span>นำเข้า
+  </button>
+  <button class="mnav-btn" onclick="nav(null,'issue','📤 เบิก',''); mnavActive(this)">
+    <span class="micon">📤</span>เบิก
+    <span class="mbadge" id="mbdgIssue" style="display:none"></span>
+  </button>
+  <button class="mnav-btn" onclick="nav(null,'return','↩ คืน',''); mnavActive(this)">
+    <span class="micon">↩</span>คืน
+  </button>
+</div>
 
 <!-- SIDEBAR -->
 <nav class="sidebar">
@@ -2298,11 +2393,15 @@ const eventColor=e=>({buy:'var(--accent)',issue:'var(--yellow)',return:'var(--or
 function nav(el,page,title,sub){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  el.classList.add('active');
+  if(el) el.classList.add('active');
   document.getElementById('page-'+page).classList.add('active');
   document.getElementById('topTitle').textContent=title;
   document.getElementById('topSub').textContent=sub;
   refreshPage(page);
+}
+function mnavActive(btn){
+  document.querySelectorAll('.mnav-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
 }
 function refreshPage(p){
   if(p==='dashboard') renderDashboard();
@@ -2312,7 +2411,6 @@ function refreshPage(p){
   if(p==='return') renderReturn();
   if(p==='reissue') renderReissue();
 }
-
 // ═══════════════════════════════════════════
 //  DASHBOARD
 // ═══════════════════════════════════════════
@@ -2506,6 +2604,12 @@ function updateBadges(){
   document.getElementById('bdgIssue').textContent=issues;
   document.getElementById('bdgReturn').textContent=rets;
   document.getElementById('bdgReissue').textContent=reis;
+  // Mobile badges
+  const mbReg=document.getElementById('mbdgReg');
+  const mbIss=document.getElementById('mbdgIssue');
+  if(mbReg){mbReg.textContent=stock;mbReg.style.display=stock>0?'flex':'none';}
+  if(mbIss){mbIss.textContent=REGISTRY.filter(x=>x.status==='used_inspect').length;
+    mbIss.style.display=REGISTRY.filter(x=>x.status==='used_inspect').length>0?'flex':'none';}
 }
 
 // ═══════════════════════════════════════════
